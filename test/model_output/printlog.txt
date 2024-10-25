@@ -1,0 +1,25 @@
+2024-10-25 16:12:48,263 [INFO ]  loading data Pt_ads.traj
+2024-10-25 16:12:48,265 [INFO ]  Dataset size: 278, training set size: 250, validation set size: 28
+2024-10-25 16:12:48,880 [INFO ]  step=0, energy_mae=5.285, energy_rmse=5.416, sqrt(total_loss)=5.416, sqrt(train_loss)=5.091, sqrt(smooth_loss)=5.416, patience=  0, training time=0.001 min, eval time=0.000 min
+2024-10-25 16:13:20,338 [INFO ]  step=2000, energy_mae=0.091, energy_rmse=0.129, sqrt(total_loss)=0.129, sqrt(train_loss)=0.595, sqrt(smooth_loss)=1.717, patience=  0, training time=0.385 min, eval time=0.000 min
+2024-10-25 16:13:51,371 [INFO ]  step=4000, energy_mae=0.110, energy_rmse=0.147, sqrt(total_loss)=0.147, sqrt(train_loss)=0.096, sqrt(smooth_loss)=0.561, patience=  0, training time=0.378 min, eval time=0.000 min
+2024-10-25 16:14:20,739 [INFO ]  step=6000, energy_mae=0.076, energy_rmse=0.101, sqrt(total_loss)=0.101, sqrt(train_loss)=0.090, sqrt(smooth_loss)=0.201, patience=  0, training time=0.353 min, eval time=0.000 min
+2024-10-25 16:14:52,508 [INFO ]  step=8000, energy_mae=0.059, energy_rmse=0.077, sqrt(total_loss)=0.077, sqrt(train_loss)=0.078, sqrt(smooth_loss)=0.097, patience=  0, training time=0.390 min, eval time=0.000 min
+2024-10-25 16:15:23,075 [INFO ]  step=10000, energy_mae=0.066, energy_rmse=0.085, sqrt(total_loss)=0.085, sqrt(train_loss)=0.070, sqrt(smooth_loss)=0.087, patience=  0, training time=0.372 min, eval time=0.000 min
+2024-10-25 16:15:52,542 [INFO ]  step=12000, energy_mae=0.048, energy_rmse=0.077, sqrt(total_loss)=0.077, sqrt(train_loss)=0.067, sqrt(smooth_loss)=0.078, patience=  0, training time=0.355 min, eval time=0.000 min
+2024-10-25 16:16:22,534 [INFO ]  step=14000, energy_mae=0.046, energy_rmse=0.083, sqrt(total_loss)=0.083, sqrt(train_loss)=0.063, sqrt(smooth_loss)=0.083, patience=  0, training time=0.362 min, eval time=0.000 min
+2024-10-25 16:16:55,109 [INFO ]  step=16000, energy_mae=0.059, energy_rmse=0.094, sqrt(total_loss)=0.094, sqrt(train_loss)=0.061, sqrt(smooth_loss)=0.093, patience=  1, training time=0.403 min, eval time=0.000 min
+2024-10-25 16:17:27,523 [INFO ]  step=18000, energy_mae=0.070, energy_rmse=0.102, sqrt(total_loss)=0.102, sqrt(train_loss)=0.059, sqrt(smooth_loss)=0.101, patience=  2, training time=0.398 min, eval time=0.000 min
+2024-10-25 16:17:58,964 [INFO ]  step=20000, energy_mae=0.042, energy_rmse=0.084, sqrt(total_loss)=0.084, sqrt(train_loss)=0.059, sqrt(smooth_loss)=0.086, patience=  3, training time=0.383 min, eval time=0.000 min
+2024-10-25 16:18:31,862 [INFO ]  step=22000, energy_mae=0.050, energy_rmse=0.099, sqrt(total_loss)=0.099, sqrt(train_loss)=0.057, sqrt(smooth_loss)=0.098, patience=  3, training time=0.403 min, eval time=0.000 min
+2024-10-25 16:19:04,260 [INFO ]  step=24000, energy_mae=0.054, energy_rmse=0.098, sqrt(total_loss)=0.098, sqrt(train_loss)=0.057, sqrt(smooth_loss)=0.098, patience=  4, training time=0.394 min, eval time=0.000 min
+2024-10-25 16:19:36,563 [INFO ]  step=26000, energy_mae=0.053, energy_rmse=0.104, sqrt(total_loss)=0.104, sqrt(train_loss)=0.056, sqrt(smooth_loss)=0.103, patience=  5, training time=0.396 min, eval time=0.000 min
+2024-10-25 16:20:09,281 [INFO ]  step=28000, energy_mae=0.049, energy_rmse=0.124, sqrt(total_loss)=0.124, sqrt(train_loss)=0.055, sqrt(smooth_loss)=0.122, patience=  6, training time=0.397 min, eval time=0.000 min
+2024-10-25 16:20:42,868 [INFO ]  step=30000, energy_mae=0.060, energy_rmse=0.132, sqrt(total_loss)=0.132, sqrt(train_loss)=0.055, sqrt(smooth_loss)=0.131, patience=  7, training time=0.407 min, eval time=0.000 min
+2024-10-25 16:21:15,477 [INFO ]  step=32000, energy_mae=0.048, energy_rmse=0.119, sqrt(total_loss)=0.119, sqrt(train_loss)=0.054, sqrt(smooth_loss)=0.120, patience=  8, training time=0.387 min, eval time=0.000 min
+2024-10-25 16:21:48,275 [INFO ]  step=34000, energy_mae=0.051, energy_rmse=0.127, sqrt(total_loss)=0.127, sqrt(train_loss)=0.053, sqrt(smooth_loss)=0.127, patience=  8, training time=0.392 min, eval time=0.000 min
+2024-10-25 16:22:20,804 [INFO ]  step=36000, energy_mae=0.052, energy_rmse=0.127, sqrt(total_loss)=0.127, sqrt(train_loss)=0.052, sqrt(smooth_loss)=0.127, patience=  9, training time=0.385 min, eval time=0.000 min
+2024-10-25 16:22:52,930 [INFO ]  step=38000, energy_mae=0.058, energy_rmse=0.137, sqrt(total_loss)=0.137, sqrt(train_loss)=0.053, sqrt(smooth_loss)=0.136, patience= 10, training time=0.381 min, eval time=0.000 min
+2024-10-25 16:23:25,889 [INFO ]  step=40000, energy_mae=0.053, energy_rmse=0.135, sqrt(total_loss)=0.135, sqrt(train_loss)=0.052, sqrt(smooth_loss)=0.135, patience= 11, training time=0.395 min, eval time=0.000 min
+2024-10-25 16:23:59,587 [INFO ]  step=42000, energy_mae=0.075, energy_rmse=0.173, sqrt(total_loss)=0.173, sqrt(train_loss)=0.052, sqrt(smooth_loss)=0.169, patience= 11, training time=0.405 min, eval time=0.000 min
+2024-10-25 16:24:31,478 [INFO ]  step=44000, energy_mae=0.060, energy_rmse=0.127, sqrt(total_loss)=0.127, sqrt(train_loss)=0.051, sqrt(smooth_loss)=0.132, patience= 12, training time=0.378 min, eval time=0.000 min
