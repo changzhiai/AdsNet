@@ -152,7 +152,7 @@ def main(read_csv=False):
     logger.warning = CallsCounter(logger.warning)
     logger.info = CallsCounter(logger.info)
     # load model
-    state_dict = torch.load(f'{path}/../{args.load_model}') 
+    state_dict = torch.load(f'{path}/{args.load_model}') 
     model = PainnModel(
         num_interactions=state_dict["num_layer"],
         hidden_state_size=state_dict["node_size"],
