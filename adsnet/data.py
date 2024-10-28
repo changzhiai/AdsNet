@@ -54,7 +54,7 @@ class AseData(torch.utils.data.Dataset):
         atoms_data['ads_num_atoms'] = torch.tensor([len(atoms_data['ads_idx'])])
         atoms_data['ads_atomic_num'] = torch.tensor([atoms.numbers[atoms_data['ads_idx']]])
         atoms_data['ads_coords'] = torch.tensor([atoms.positions[atoms_data['ads_idx']]], dtype=torch.float)
-        atoms_data['ads_nbr_coords'] = torch.tensor(atoms.positions[ads_idx_pairs[:,1]], dtype=torch.float)
+        # atoms_data['ads_nbr_coords'] = torch.tensor(atoms.positions[ads_idx_pairs[:,1]], dtype=torch.float)
         # atoms_data['ads_forces'] = torch.tensor(atoms.get_forces()[ads_data['ads_idx']])
         
         return atoms_data
@@ -67,7 +67,7 @@ class AseData(torch.utils.data.Dataset):
         ads_idx = atoms.info['data']['ads_idx']
         for i in ads_idx:
             indices, diff, _ = nl.get_neighbors(i)
-            pair_i_idx += [i] * len(indices)               # local index of pair i
+            pair_i_idx += [i] * len(indices)  # local index of pair i
             pair_j_idx.append(indices)   # local index of pair j
             ads_edge_diff.append(diff)
 
