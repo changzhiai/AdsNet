@@ -18,7 +18,6 @@ random_seed = 3407
 start_iteration = 0
 split_file = false
 stop_patience = 200
-# load_model = "/Users/changzhi/Library/CloudStorage/OneDrive-SLACNationalAcceleratorLaboratory/SLAC/AdsNet/model_output/best_model.pth"
 load_model = "model_output/best_model.pth"
 E_per_atoms = false
 save_csv = "fitting.csv"
