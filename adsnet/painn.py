@@ -150,6 +150,12 @@ class PainnModel(nn.Module):
             nn.Linear(self.hidden_state_size, 1),
         )
 
+        self.readout_forces = nn.Sequential(
+            nn.Linear(self.hidden_state_size, self.hidden_state_size),
+            nn.SiLU(),
+            nn.Linear(self.hidden_state_size, 1),
+        )
+
         # Normalisation constants
         self.normalization = torch.nn.Parameter(
             torch.tensor(normalization), requires_grad=False
@@ -172,7 +178,7 @@ class PainnModel(nn.Module):
         coords = input_dict['coords']
         ads_num_atoms = input_dict['ads_num_atoms']
 
-        # ads_idx_pairs offset. Add offset to edges to get indices of pairs in a batch but not a structure
+        # ads_idx_pairs offset: index in the batch
         ads_idx_pairs = input_dict['ads_idx_pairs']
         ads_idx_offset = torch.cumsum(
             torch.cat((torch.tensor([0], 
@@ -200,7 +206,8 @@ class PainnModel(nn.Module):
                                  )
         
         for message_layer, update_layer in zip(self.message_layers, self.update_layers):
-            node_scalar, node_vector = message_layer(node_scalar, node_vector, ads_idx_pairs, ads_edge_diff, edge_dist, all_scalar, all_vector)
+            node_scalar, node_vector = message_layer(node_scalar, node_vector, \
+                ads_idx_pairs, ads_edge_diff, edge_dist, all_scalar, all_vector)
             node_scalar, node_vector = update_layer(node_scalar, node_vector)
         
         node_scalar = self.readout_mlp(node_scalar)
@@ -211,8 +218,13 @@ class PainnModel(nn.Module):
                                 )
         image_idx = torch.repeat_interleave(image_idx, ads_num_atoms)
         
-        ads_energy = torch.zeros_like(ads_num_atoms).float()        
+        ads_energy = torch.zeros_like(ads_num_atoms).float()     
         ads_energy.index_add_(0, image_idx, node_scalar)
+
+        node_vector = self.readout_forces(node_vector)
+        node_vector.squeeze_()
+        forces = torch.zeros_like(ads_coords).float()
+        forces.index_add_(0, image_idx, node_vector)
 
         # Apply (de-)normalization
         # if self.normalization:
@@ -223,7 +235,9 @@ class PainnModel(nn.Module):
         #         mean_shift = input_dict["num_atoms"] * mean_shift
         #     energy = energy + mean_shift
 
-        result_dict = {'ads_energy': ads_energy}
+        result_dict = {'ads_energy': ads_energy,
+                       'forces': forces}
+        
         
         # if compute_forces:
         #     dE_ddiff = torch.autograd.grad(
