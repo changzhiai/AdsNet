@@ -57,7 +57,7 @@ def forces_criterion(predicted, target, reduction="mean"):
     # node_count is (bs) tensor
     diff = predicted - target
     total_squared_norm = torch.linalg.norm(diff, dim=1)  # bs
-    if reduction == "mean":
+    if reduction == "mean": # mean squared error
         scalar = torch.mean(total_squared_norm)
     elif reduction == "sum":
         scalar = torch.sum(total_squared_norm)
@@ -115,16 +115,17 @@ def eval_model(model, dataloader, device, forces_weight):
         }
         out = model(device_batch)
 
-        # counts
         count += batch["ads_energy"].shape[0]
-        # forces_count += batch['forces'].shape[0]
+        energy_loss = criterion(out["ads_energy"], device_batch["ads_energy"]).item() 
 
+        if bool(forces_weight):
+            forces_count += batch['ads_forces'].shape[0]
+            forces_loss = forces_criterion(out["ads_forces"], device_batch["ads_forces"]).item()
+        else:
+            forces_loss = 0
         
-        # use mean square loss here
-        # forces_loss = forces_criterion(out["forces"], device_batch["forces"]).item()
-        energy_loss = criterion(out["ads_energy"], device_batch["ads_energy"]).item()  #problem here
-        # total_loss = forces_weight * forces_loss + (1 - forces_weight) * energy_loss
-        total_loss = energy_loss
+        # total_loss = energy_loss
+        total_loss = forces_weight * forces_loss + (1 - forces_weight) * energy_loss
         running_loss += total_loss * batch["ads_energy"].shape[0]
         
         # ads_energy errors
@@ -136,34 +137,46 @@ def eval_model(model, dataloader, device, forces_weight):
         )
 
         # force errors
-        # forces_targets = batch["forces"].detach().cpu().numpy()
-        # forces_diff = forces_targets - outputs["forces"]
-        # forces_l2_norm = np.sqrt(np.sum(np.square(forces_diff), axis=1))
+        if bool(forces_weight):
+            forces_targets = batch["ads_forces"].detach().cpu().numpy()
+            forces_diff = forces_targets - outputs["ads_forces"]
+            forces_l2_norm = np.sqrt(np.sum(np.square(forces_diff), axis=1))
 
-        # forces_running_c_ae += np.sum(np.abs(forces_diff))
-        # forces_running_c_se += np.sum(np.square(forces_diff))
+            forces_running_c_ae += np.sum(np.abs(forces_diff))
+            forces_running_c_se += np.sum(np.square(forces_diff))
 
-        # forces_running_l2_ae += np.sum(np.abs(forces_l2_norm))
-        # forces_running_l2_se += np.sum(np.square(forces_l2_norm))
+            forces_running_l2_ae += np.sum(np.abs(forces_l2_norm))
+            forces_running_l2_se += np.sum(np.square(forces_l2_norm))
+        else:
+            forces_running_l2_ae = 0
+            forces_running_l2_se = 0
+            forces_running_c_ae = 0
+            forces_running_c_se = 0
 
     energy_mae = energy_running_ae / count
     energy_rmse = np.sqrt(energy_running_se / count)
 
-    # forces_l2_mae = forces_running_l2_ae / forces_count
-    # forces_l2_rmse = np.sqrt(forces_running_l2_se / forces_count)
+    if bool(forces_weight):
+        forces_l2_mae = forces_running_l2_ae / forces_count
+        forces_l2_rmse = np.sqrt(forces_running_l2_se / forces_count)
 
-    # forces_c_mae = forces_running_c_ae / (forces_count * 3)
-    # forces_c_rmse = np.sqrt(forces_running_c_se / (forces_count * 3))
+        forces_c_mae = forces_running_c_ae / (forces_count * 3)
+        forces_c_rmse = np.sqrt(forces_running_c_se / (forces_count * 3))
+    else:
+        forces_l2_mae = 0
+        forces_l2_rmse = 0
+        forces_c_mae = 0
+        forces_c_rmse = 0
 
     total_loss = running_loss / count
 
     evaluation = {
         "energy_mae": energy_mae,
         "energy_rmse": energy_rmse,
-        # "forces_l2_mae": forces_l2_mae,
-        # "forces_l2_rmse": forces_l2_rmse,
-        # "forces_mae": forces_c_mae,
-        # "forces_rmse": forces_c_rmse,
+        "forces_l2_mae": forces_l2_mae,
+        "forces_l2_rmse": forces_l2_rmse,
+        "forces_mae": forces_c_mae,
+        "forces_rmse": forces_c_rmse,
         "sqrt(total_loss)": np.sqrt(total_loss),
     }
 
@@ -223,8 +236,6 @@ def main():
 
     # Create device
     device = torch.device(args.device)
-    # Put a tensor on the device before loading data
-    # This way the GPU appears to be in use when other users run gpustat
     torch.tensor([0], device=device)
 
     # Setup dataset and loader
@@ -316,7 +327,7 @@ def main():
             )
             energy_loss = criterion(outputs["ads_energy"], batch["ads_energy"])
             if args.forces_weight:
-                forces_loss = forces_criterion(outputs['forces'], batch['forces'])
+                forces_loss = forces_criterion(outputs['ads_forces'], batch['ads_forces'])
             else:
                 forces_loss = 0.0
             total_loss = (

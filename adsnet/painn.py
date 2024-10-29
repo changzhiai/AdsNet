@@ -223,8 +223,8 @@ class PainnModel(nn.Module):
 
         node_vector = self.readout_forces(node_vector)
         node_vector.squeeze_()
-        forces = torch.zeros_like(ads_coords).float()
-        forces.index_add_(0, image_idx, node_vector)
+        ads_forces = torch.zeros_like(ads_coords).float()
+        ads_forces.index_add_(0, image_idx, node_vector)
 
         # Apply (de-)normalization
         # if self.normalization:
@@ -236,7 +236,7 @@ class PainnModel(nn.Module):
         #     energy = energy + mean_shift
 
         result_dict = {'ads_energy': ads_energy,
-                       'forces': forces}
+                       'ads_forces': ads_forces}
         
         
         # if compute_forces:
