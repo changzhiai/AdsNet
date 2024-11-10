@@ -54,7 +54,6 @@ class AseData(torch.utils.data.Dataset):
         atoms_data['ads_num_atoms'] = torch.tensor([len(atoms_data['ads_idx'])])
         atoms_data['ads_atomic_num'] = torch.tensor([atoms.numbers[atoms_data['ads_idx']]])
         atoms_data['ads_coords'] = torch.tensor([atoms.positions[atoms_data['ads_idx']]], dtype=torch.float)
-        # atoms_data['ads_nbr_coords'] = torch.tensor(atoms.positions[ads_idx_pairs[:,1]], dtype=torch.float)
         
         try:
             atoms_data['ads_forces'] = torch.tensor(atoms.get_forces()[ads_data['ads_idx']])

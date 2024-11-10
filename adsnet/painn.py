@@ -194,16 +194,18 @@ class PainnModel(nn.Module):
             ads_edge_diff.requires_grad_()
         edge_dist = torch.linalg.norm(ads_edge_diff, dim=1)
         
-        node_scalar = self.atom_embedding(ads_atomic_num)
+        # node_scalar = self.atom_embedding(ads_atomic_num)
         all_scalar = self.atom_embedding(input_dict['elems'])
-        node_vector = torch.zeros((ads_coords.shape[0], 3, self.hidden_state_size),
-                                  device=ads_coords.device,
-                                  dtype=ads_coords.dtype,
-                                 )
+        node_scalar = all_scalar[torch.unique(ads_idx_pairs[:, 0])]
+        # node_vector = torch.zeros((ads_coords.shape[0], 3, self.hidden_state_size),
+        #                           device=ads_coords.device,
+        #                           dtype=ads_coords.dtype,
+        #                          )
         all_vector = torch.zeros((coords.shape[0], 3, self.hidden_state_size),
                                   device=coords.device,
                                   dtype=coords.dtype,
                                  )
+        node_vector = all_vector[torch.unique(ads_idx_pairs[:, 0])]
         
         for message_layer, update_layer in zip(self.message_layers, self.update_layers):
             node_scalar, node_vector = message_layer(node_scalar, node_vector, \
@@ -224,7 +226,8 @@ class PainnModel(nn.Module):
         node_vector = self.readout_forces(node_vector)
         node_vector.squeeze_()
         ads_forces = torch.zeros_like(ads_coords).float()
-        ads_forces.index_add_(0, image_idx, node_vector)
+        if compute_forces:
+            ads_forces.index_add_(0, image_idx, node_vector)
 
         # Apply (de-)normalization
         # if self.normalization:
@@ -236,7 +239,8 @@ class PainnModel(nn.Module):
         #     energy = energy + mean_shift
 
         result_dict = {'ads_energy': ads_energy,
-                       'ads_forces': ads_forces}
+                       'ads_forces': ads_forces
+                       }
         
         
         # if compute_forces:
