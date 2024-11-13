@@ -45,7 +45,8 @@ class PainnMessage(nn.Module):
         # remember to use v_j, s_j but not v_i, s_i        
         filter_weight = self.filter_layer(sinc_expansion(edge_dist, self.edge_size, self.cutoff))
         filter_weight = filter_weight * cosine_cutoff(edge_dist, self.cutoff).unsqueeze(-1)
-        scalar_out = self.scalar_message_mlp(all_scalar[ads_idx_pairs[:, 1]])        
+        # scalar_out = self.scalar_message_mlp(all_scalar[ads_idx_pairs[:, 1]])    
+        scalar_out = self.scalar_message_mlp(all_scalar[ads_idx_pairs[:, 0]])     
         filter_out = filter_weight * scalar_out 
         
         gate_state_vector, gate_edge_vector, message_scalar = torch.split(
@@ -54,7 +55,8 @@ class PainnMessage(nn.Module):
             dim = 1,
         )
         
-        message_vector =  all_vector[ads_idx_pairs[:, 1]] * gate_state_vector.unsqueeze(1) 
+        # message_vector =  all_vector[ads_idx_pairs[:, 1]] * gate_state_vector.unsqueeze(1) 
+        message_vector =  all_vector[ads_idx_pairs[:, 0]] * gate_state_vector.unsqueeze(1) # try here
         edge_vector = gate_edge_vector.unsqueeze(1) * (ads_edge_diff / edge_dist.unsqueeze(-1)).unsqueeze(-1)
         message_vector = message_vector + edge_vector
         

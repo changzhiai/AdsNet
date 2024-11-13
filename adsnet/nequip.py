@@ -385,6 +385,7 @@ class ConvNetLayer(torch.nn.Module):
         avg_num_neighbors: Optional[float]=None,
         use_sc: bool=True,
         nonlinearity_scalars: Dict[int, Callable] = {"e": "ssp"},
+        iter: int=0,
     ) -> None:
         """
         Convolution Block.
@@ -500,6 +501,7 @@ class ConvNetLayer(torch.nn.Module):
                 irreps_in['node_attr'],
                 feature_irreps_out,
             )
+        self.iter = iter
 
     def forward(self, data):
         """
@@ -535,19 +537,21 @@ class ConvNetLayer(torch.nn.Module):
         # x = data['node_feat'][ads_idx_pairs[:, 0]]
         if self.sc is not None:
             sc = self.sc(x, data['ads_node_attr'])
-
             # ads_nbr_attr =  self.linear_nbr(data['ads_nbr_attr'])
             # sc_nbr = self.sc(data['ads_nbr_feat'], ads_nbr_attr)
-
 
         x = self.linear_1(x)
         ads_idx_pairs = data['ads_idx_pairs_batch']
         # data['ads_nbr_feat'] =  data['node_feat'][ads_idx_pairs[:, 1]]
-        ads_nbr_attr =  self.linear_nbr(data['ads_nbr_attr'])
+        # ads_nbr_attr =  self.linear_nbr(data['ads_nbr_attr'])
 
 
         _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True)
-        x[idx] = x[idx] * ads_nbr_attr
+        # if self.iter == 0:
+        #     x[idx] = x[idx] + ads_nbr_attr
+        # else:
+        #     x[idx] = x[idx]
+        # x[idx] = ads_nbr_attr
         ads_edge_features = self.tp(
             x[idx], data['ads_edge_diff_embedding'], weight
             # data['ads_nbr_feat'], data['ads_edge_diff_embedding'], weight
@@ -618,6 +622,7 @@ class InteractionLayer(torch.nn.Module):
         nonlinearity_type: str = "gate",
         nonlinearity_scalars: Dict[int, Callable] = {"e": "ssp", "o": "tanh"},
         nonlinearity_gates: Dict[int, Callable] = {"e": "ssp", "o": "abs"},
+        iter: int = 0
     ):
         super().__init__()
         # initialization
@@ -705,7 +710,7 @@ class InteractionLayer(torch.nn.Module):
         # logging.debug(
         #     f" parameters used to initialize {convolution.__name__}={convolution_kwargs}"
         # )
-
+        self.iter = iter
         # override defaults for irreps:
         convolution_kwargs.pop("irreps_in", None)
         convolution_kwargs.pop("irreps_out", None)
@@ -714,6 +719,7 @@ class InteractionLayer(torch.nn.Module):
             irreps_out=conv_irreps_out,
             nonlinearity_scalars=nonlinearity_scalars,
             **convolution_kwargs,
+            iter = self.iter,
         )
         # output node feature irreps
         self.irreps_out['node_feat'] = self.equivariant_nonlin.irreps_out
@@ -845,7 +851,7 @@ class NequipModel(torch.nn.Module):
         self.irreps_in['ads_nbr_feat'] = self.node_irreps
         
         self.interactions = nn.ModuleList()
-        for _ in range(num_interactions):
+        for i in range(num_interactions):
             interaction = InteractionLayer(
                 irreps_in=self.irreps_in, 
                 feature_irreps_hidden=self.hidden_irreps,
@@ -854,6 +860,7 @@ class NequipModel(torch.nn.Module):
                 nonlinearity_type=nonlinearity_type,
                 nonlinearity_scalars=nonlinearity_scalars,
                 nonlinearity_gates=nonlinearity_gates,
+                iter = i,
             )
             self.interactions.append(interaction)
             self.irreps_in.update(interaction.irreps_out)
