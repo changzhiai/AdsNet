@@ -38,6 +38,11 @@ class PainnMessage(nn.Module):
             nn.SiLU(),
             nn.Linear(node_size, node_size * 3),
         )
+        self.scalar_message_mlp2 = nn.Sequential(
+            nn.Linear(node_size, node_size),
+            nn.SiLU(),
+            nn.Linear(node_size, node_size * 3),
+        )
         
         self.filter_layer = nn.Linear(edge_size, node_size * 3)
         
@@ -45,9 +50,15 @@ class PainnMessage(nn.Module):
         # remember to use v_j, s_j but not v_i, s_i        
         filter_weight = self.filter_layer(sinc_expansion(edge_dist, self.edge_size, self.cutoff))
         filter_weight = filter_weight * cosine_cutoff(edge_dist, self.cutoff).unsqueeze(-1)
-        # scalar_out = self.scalar_message_mlp(all_scalar[ads_idx_pairs[:, 1]])    
-        scalar_out = self.scalar_message_mlp(all_scalar[ads_idx_pairs[:, 0]])     
+        # scalar_out = self.scalar_message_mlp(all_scalar[ads_idx_pairs[:, 1]])
+        _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True)
+        scalar_out = self.scalar_message_mlp(node_scalar[idx])     
+        # scalar_out2 = self.scalar_message_mlp2(all_scalar[ads_idx_pairs[:, 1]])     
+        # row_norms = torch.norm(scalar_out2, p=2, dim=1, keepdim=True)
+        # scalar_out2 = scalar_out2 / row_norms
+
         filter_out = filter_weight * scalar_out 
+        # filter_out = filter_weight * (scalar_out * scalar_out2)
         
         gate_state_vector, gate_edge_vector, message_scalar = torch.split(
             filter_out, 
@@ -56,20 +67,22 @@ class PainnMessage(nn.Module):
         )
         
         # message_vector =  all_vector[ads_idx_pairs[:, 1]] * gate_state_vector.unsqueeze(1) 
-        message_vector =  all_vector[ads_idx_pairs[:, 0]] * gate_state_vector.unsqueeze(1) # try here
+        message_vector =  node_vector[idx] * gate_state_vector.unsqueeze(1) # try here
         edge_vector = gate_edge_vector.unsqueeze(1) * (ads_edge_diff / edge_dist.unsqueeze(-1)).unsqueeze(-1)
         message_vector = message_vector + edge_vector
         
         # sum message
         residual_scalar = torch.zeros_like(node_scalar)
         residual_vector = torch.zeros_like(node_vector)
-        _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True)
+        # _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True)
         residual_scalar.index_add_(0, idx, message_scalar)
         residual_vector.index_add_(0, idx, message_vector)
         
         # new node state
         new_node_scalar = node_scalar + residual_scalar
         new_node_vector = node_vector + residual_vector
+        # new_node_scalar = residual_scalar
+        # new_node_vector = residual_vector
         
         return new_node_scalar, new_node_vector
 
@@ -106,6 +119,7 @@ class PainnUpdate(nn.Module):
         delta_s = a_sv * inner_prod + a_ss
         
         return node_scalar + delta_s, node_vector + delta_v
+        # return delta_s, delta_v
 
 class PainnModel(nn.Module):
     """PainnModel without ads_idx_pairs updating"""
