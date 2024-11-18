@@ -52,12 +52,15 @@ class PainnMessage(nn.Module):
         filter_weight = filter_weight * cosine_cutoff(edge_dist, self.cutoff).unsqueeze(-1)
         # scalar_out = self.scalar_message_mlp(all_scalar[ads_idx_pairs[:, 1]])
         _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True)
-        scalar_out = self.scalar_message_mlp(node_scalar[idx])     
-        # scalar_out2 = self.scalar_message_mlp2(all_scalar[ads_idx_pairs[:, 1]])     
-        # row_norms = torch.norm(scalar_out2, p=2, dim=1, keepdim=True)
-        # scalar_out2 = scalar_out2 / row_norms
+        scalar_out = self.scalar_message_mlp(node_scalar[idx])
+        # row_norms = torch.norm(scalar_out, p=2, dim=1, keepdim=True)
+        # scalar_out = scalar_out / row_norms
 
-        filter_out = filter_weight * scalar_out 
+        # scalar_out2 = self.scalar_message_mlp2(all_scalar[ads_idx_pairs[:, 1]])
+        # row_norms2 = torch.norm(scalar_out2, p=2, dim=1, keepdim=True)
+        # scalar_out2 = scalar_out2 / row_norms2
+
+        filter_out = filter_weight * scalar_out
         # filter_out = filter_weight * (scalar_out * scalar_out2)
         
         gate_state_vector, gate_edge_vector, message_scalar = torch.split(
@@ -65,9 +68,11 @@ class PainnMessage(nn.Module):
             self.node_size,
             dim = 1,
         )
-        
+
+        ads_nbr_scalar = all_scalar[ads_idx_pairs[:, 1]]
         # message_vector =  all_vector[ads_idx_pairs[:, 1]] * gate_state_vector.unsqueeze(1) 
-        message_vector =  node_vector[idx] * gate_state_vector.unsqueeze(1) # try here
+        message_vector =  node_vector[idx] * ads_nbr_scalar.unsqueeze(1) * gate_state_vector.unsqueeze(1) # try here
+        # message_vector =  node_vector[idx] * gate_state_vector.unsqueeze(1) # try here
         edge_vector = gate_edge_vector.unsqueeze(1) * (ads_edge_diff / edge_dist.unsqueeze(-1)).unsqueeze(-1)
         message_vector = message_vector + edge_vector
         
