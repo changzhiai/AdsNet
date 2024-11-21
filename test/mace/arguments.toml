@@ -1,5 +1,5 @@
-node_size = 128
-num_interactions = 3
+node_size = 64
+num_interactions = 4
 cutoff = 4.0
 val_ratio = 0.1
 output_dir = "model_output"
