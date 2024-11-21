@@ -42,6 +42,10 @@ class MLCalculator(Calculator):
 
         model_results = self.model(model_inputs)
 
+        # from adsnet.mace import AtomwiseReduce
+        # m = AtomwiseReduce(output_key='ads_energy')
+        # model_results = m(model_results)
+
         results = {}
 
         # Convert outputs to calculator format

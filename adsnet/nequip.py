@@ -428,7 +428,8 @@ class ConvNetLayer(torch.nn.Module):
 
         self.linear_nbr = Linear(
             irreps_in=irreps_in['node_attr'],
-            irreps_out=feature_irreps_in,
+            # irreps_out=feature_irreps_in,
+            irreps_out=edge_diff_irreps,
             internal_weights=True,
             shared_weights=True,
         )
@@ -495,12 +496,23 @@ class ConvNetLayer(torch.nn.Module):
                 irreps_in['node_attr'],
                 feature_irreps_out,
             )
-
+    #    self.linear_nbr = Linear(
+    #         irreps_in=irreps_in['node_attr'],
+    #         # irreps_out=feature_irreps_in,
+    #         irreps_out=edge_diff_irreps,
+    #         internal_weights=True,
+    #         shared_weights=True,
+    #     )
         self.sc_nbr = FullyConnectedTensorProduct(
-                feature_irreps_in,
                 irreps_in['node_attr'],
-                feature_irreps_out,
+                edge_diff_irreps,
+                edge_diff_irreps,
             )
+        # self.sc_nbr = FullyConnectedTensorProduct(
+        #         feature_irreps_in,
+        #         irreps_in['node_attr'],
+        #         feature_irreps_out,
+        #     )
         self.iter = iter
 
     def forward(self, data):
@@ -553,7 +565,8 @@ class ConvNetLayer(torch.nn.Module):
         #     x[idx] = x[idx]
         # x[idx] = ads_nbr_attr
         ads_edge_features = self.tp(
-            x[idx], data['ads_edge_diff_embedding'], weight
+            x[idx], self.sc_nbr(data['ads_nbr_attr'], data['ads_edge_diff_embedding']), weight
+            # x[idx], data['ads_edge_diff_embedding']*ads_nbr_attr, weight
             # data['ads_nbr_feat'], data['ads_edge_diff_embedding'], weight
         )
         
@@ -875,6 +888,7 @@ class NequipModel(torch.nn.Module):
                 irreps_out=o3.Irreps('1x0e'),
             ),
         )
+        self.atomwise_reduce = AtomwiseReduce(output_key='ads_energy')
         
     def forward(self, data):        
         for m in self.embeddings.values():
@@ -884,6 +898,8 @@ class NequipModel(torch.nn.Module):
             data = m(data)
         
         data['ads_atomic_energy'] = self.readout_mlp(data['ads_node_feat']).squeeze()
+        data = self.atomwise_reduce(data)
+        
         return data
     
 class AtomwiseReduce(nn.Module):

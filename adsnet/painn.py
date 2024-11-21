@@ -71,8 +71,9 @@ class PainnMessage(nn.Module):
 
         ads_nbr_scalar = all_scalar[ads_idx_pairs[:, 1]]
         # message_vector =  all_vector[ads_idx_pairs[:, 1]] * gate_state_vector.unsqueeze(1) 
-        message_vector =  node_vector[idx] * ads_nbr_scalar.unsqueeze(1) * gate_state_vector.unsqueeze(1) # try here
+        message_vector =  node_vector[idx] * ads_nbr_scalar.unsqueeze(1) * gate_state_vector.unsqueeze(1) # try here 
         # message_vector =  node_vector[idx] * gate_state_vector.unsqueeze(1) # try here
+        # edge_vector = gate_edge_vector.unsqueeze(1) * ads_nbr_scalar.unsqueeze(1) * (ads_edge_diff / edge_dist.unsqueeze(-1)).unsqueeze(-1)
         edge_vector = gate_edge_vector.unsqueeze(1) * (ads_edge_diff / edge_dist.unsqueeze(-1)).unsqueeze(-1)
         message_vector = message_vector + edge_vector
         

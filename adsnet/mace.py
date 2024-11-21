@@ -462,6 +462,12 @@ class RealAgnosticResidualInteractionBlock(torch.nn.Module):
         )
         self.reshape = reshape_irreps(self.irreps_out)
 
+        self.sc_nbr = o3.FullyConnectedTensorProduct(
+                self.irreps_in['node_attr'],
+                self.irreps_in['edge_diff_embedding'],
+                self.irreps_in['edge_diff_embedding'],
+            )
+
     def forward(
         self,
         node_feat, 
@@ -469,15 +475,18 @@ class RealAgnosticResidualInteractionBlock(torch.nn.Module):
         edge_idx, 
         edge_dist_embedding,
         edge_diff_embedding,
+        ads_nbr_attr,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:      
         sc = self.skip_tp(node_feat, node_attr)
         node_feat = self.linear_1(node_feat)
         tp_weights = self.conv_tp_weights(edge_dist_embedding)
 
         _, idx = torch.unique_consecutive(edge_idx[:, 0], return_inverse=True)
+        
         edge_feat = self.conv_tp(
             node_feat[idx],
-            edge_diff_embedding,
+            self.sc_nbr(ads_nbr_attr, edge_diff_embedding),
+            # edge_diff_embedding,
             tp_weights,
         )
         node_feat = scatter_add(
@@ -1020,6 +1029,8 @@ class MACE(nn.Module):
                 readout = o3.Linear(irreps_in=hidden_irreps_out, irreps_out=o3.Irreps('1x0e'))
             self.readouts.append(readout)
             
+        self.atomwise_reduce = AtomwiseReduce(output_key='ads_energy')
+            
     def forward(self, data):
         # node_e0 = self.reference_energies[data['elems']]
         # e0 = scatter_add(node_e0, data['image_idx'], dim_size=data['n_atoms'].shape[0])
@@ -1044,6 +1055,7 @@ class MACE(nn.Module):
         data['ads_node_attr'] = data['node_attr'][torch.unique(ads_idx_pairs[:, 0])]
         data['ads_idx_pairs_batch'] = ads_idx_pairs
         node_feat = data['ads_node_feat']
+        data['ads_nbr_attr'] =  data['node_attr'][ads_idx_pairs[:, 1]]
         for interaction, product, readout in zip(
             self.interactions, self.products, self.readouts
         ):
@@ -1053,6 +1065,7 @@ class MACE(nn.Module):
                 data['ads_idx_pairs_batch'], 
                 data['ads_edge_dist_embedding'],
                 data['ads_edge_diff_embedding'],
+                data['ads_nbr_attr'], # add node attr
             )
             node_feat = product(
                 node_feats=node_feat,
@@ -1063,7 +1076,8 @@ class MACE(nn.Module):
         
         node_es = torch.sum(torch.stack(node_es_list, dim=0), dim=0)
         data['ads_atomic_energy'] = node_es
-        
+        data = self.atomwise_reduce(data)
+
         return data
     
 class AtomwiseReduce(nn.Module):
