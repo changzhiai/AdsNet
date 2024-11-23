@@ -253,6 +253,7 @@ def main():
     dataset = AseData(
         f'{path}/{args.dataset}',
         cutoff = args.cutoff,
+        compute_forces = bool(args.forces_weight),
     )
 
     datasplits = split_data(dataset, args)
@@ -291,6 +292,7 @@ def main():
         cutoff = args.cutoff,
         num_interactions = args.num_interactions,
         num_features = args.node_size,
+        compute_forces = bool(args.forces_weight),
     )
     net.to(device)
 

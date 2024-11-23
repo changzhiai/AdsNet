@@ -773,6 +773,7 @@ class NequipModel(torch.nn.Module):
         nonlinearity_scalars: Dict[int, Callable] = {"e": "ssp", "o": "tanh"},
         nonlinearity_gates: Dict[int, Callable] = {"e": "ssp", "o": "abs"},
         convolution_kwargs: dict = {},
+        compute_forces = False,
         **kwargs,
     ) -> None:
         """Nequip model.
@@ -802,6 +803,7 @@ class NequipModel(torch.nn.Module):
         self.num_features = num_features
         self.lmax = lmax
         self.parity = parity
+        self.compute_forces = compute_forces
         
         if num_elements is None:
             num_elements = len(species) if species is not None else 119
@@ -900,6 +902,20 @@ class NequipModel(torch.nn.Module):
         data['ads_atomic_energy'] = self.readout_mlp(data['ads_node_feat']).squeeze()
         data = self.atomwise_reduce(data)
         
+        if self.compute_forces:
+            dE_ddiff = torch.autograd.grad(
+                data['ads_energy'],
+                data['ads_edge_diff'],
+                grad_outputs=torch.ones_like(data['ads_energy']),
+                retain_graph=True,
+                create_graph=True,
+            )[0]
+            ads_idx_pairs = data['ads_idx_pairs_batch']
+            _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True) 
+            i_forces = torch.zeros_like(data['ads_coords']).index_add(0, idx, dE_ddiff)
+            ads_forces = i_forces
+            data['ads_forces'] = ads_forces
+
         return data
     
 class AtomwiseReduce(nn.Module):

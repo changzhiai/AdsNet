@@ -897,6 +897,7 @@ class MACE(nn.Module):
         num_basis: int = 8,
         power: int = 6,
         gate: Union[str, Callable] = 'silu',
+        compute_forces = False,
         **kwargs,
     ) -> None:
         """MACE model.
@@ -924,6 +925,7 @@ class MACE(nn.Module):
         self.cutoff = cutoff
         self.lmax = lmax
         self.parity = parity
+        self.compute_forces = compute_forces
         if isinstance(correlation, int):
             correlation = [correlation] * num_interactions
 
@@ -1077,6 +1079,19 @@ class MACE(nn.Module):
         node_es = torch.sum(torch.stack(node_es_list, dim=0), dim=0)
         data['ads_atomic_energy'] = node_es
         data = self.atomwise_reduce(data)
+
+        if self.compute_forces:
+            dE_ddiff = torch.autograd.grad(
+                data['ads_energy'],
+                data['ads_edge_diff'],
+                grad_outputs=torch.ones_like(data['ads_energy']),
+                retain_graph=True,
+                create_graph=True,
+            )[0]
+            _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True) 
+            i_forces = torch.zeros_like(data['ads_coords']).index_add(0, idx, dE_ddiff)
+            ads_forces = i_forces
+            data['ads_forces'] = ads_forces
 
         return data
     
