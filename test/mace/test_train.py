@@ -293,7 +293,7 @@ def main():
         num_interactions = args.num_interactions,
         num_features = args.node_size,
         correlation = 3,
-        species = None, 
+        species = ['Pt'], 
     )
     net.to(device)
 
@@ -316,7 +316,7 @@ def main():
 
     if args.load_model:
         logging.info(f"Load model from {args.load_model}")
-        state_dict = torch.load(args.load_model)
+        state_dict = torch.load(args.load_model, map_location=torch.device(args.device))
         net.load_state_dict(state_dict["model"])
 #        step = state_dict["step"]
 #        best_val_loss = state_dict["best_val_loss"]

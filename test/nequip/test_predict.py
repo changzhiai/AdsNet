@@ -150,7 +150,7 @@ def main(read_csv=False):
     logger.warning = CallsCounter(logger.warning)
     logger.info = CallsCounter(logger.info)
     # load model
-    state_dict = torch.load(f'{path}/{args.load_model}') 
+    state_dict = torch.load(f'{path}/{args.load_model}', map_location=torch.device(args.device)) 
     model = NequipModel(
         cutoff = args.cutoff,
         num_interactions = args.num_interactions,

@@ -3,7 +3,6 @@ import numpy as np
 import torch
 import toml
 import argparse
-from pathlib import Path
 import logging
 from adsnet.painn import PainnModel
 from adsnet.calculator import MLCalculator, EnsembleCalculator
@@ -13,7 +12,6 @@ from ase.db import connect
 import numpy as np
 import pandas as pd
 import os
-import subprocess
 
 path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 
@@ -152,7 +150,7 @@ def main(read_csv=False):
     logger.warning = CallsCounter(logger.warning)
     logger.info = CallsCounter(logger.info)
     # load model
-    state_dict = torch.load(f'{path}/{args.load_model}') 
+    state_dict = torch.load(f'{path}/{args.load_model}', map_location=torch.device(args.device)) 
     model = PainnModel(
         num_interactions=state_dict["num_layer"],
         hidden_state_size=state_dict["node_size"],
