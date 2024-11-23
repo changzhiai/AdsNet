@@ -927,6 +927,8 @@ class AtomwiseReduce(nn.Module):
             data['ads_num_atoms'], 
             dtype=data['ads_edge_diff'].dtype
         )  
+        if not bool(data['ads_atomic_energy'].shape):
+            data['ads_atomic_energy'] = data['ads_atomic_energy'].unsqueeze(0)
         y.index_add_(0, image_idx, data['ads_atomic_energy'])
         
         if self.aggregation_mode == "mean":
