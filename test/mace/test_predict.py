@@ -5,7 +5,7 @@ import toml
 import argparse
 from pathlib import Path
 import logging
-from adsnet.painn import PainnModel
+from adsnet.mace import MACE
 from adsnet.calculator import MLCalculator, EnsembleCalculator
 from ase.constraints import FixAtoms
 from ase.optimize import BFGS
@@ -29,7 +29,7 @@ class EnergyObservor:
         if energy > threshold or energy<-10000:
             raise ValueError('energy is too large or too low')
 
-def plot_fitting(dft_energies, nnp_energies, fig_name='prediction.png'):
+def plot_fitting(dft_energies, nnp_energies, fig_name='prediction.png', output_dir=None):
     import matplotlib.pyplot as plt
     from sklearn.metrics import mean_squared_error
     rmse = mean_squared_error(dft_energies, nnp_energies, squared=False)
@@ -38,8 +38,8 @@ def plot_fitting(dft_energies, nnp_energies, fig_name='prediction.png'):
     ax = fig.add_subplot(111)
     plt.plot(np.array(dft_energies), m * np.array(dft_energies) + b)
     plt.plot(dft_energies, nnp_energies, 'ob',mfc='none')
-    plt.xlabel("E_DFT (eV/atom)")
-    plt.ylabel("E_NNP (eV/atom)")
+    plt.xlabel("$E_b$(DFT) (eV)")
+    plt.ylabel("$E_b$(NNP) (eV)")
     plt.title("fit using {} data points.".format(len(nnp_energies)))
     X = dft_energies
     Y = nnp_energies
@@ -65,7 +65,7 @@ def plot_fitting(dft_energies, nnp_energies, fig_name='prediction.png'):
         plt.xticks(np.arange(min(X), max(Y), 0.2))
         plt.yticks(np.arange(min(X), max(Y), 0.2))
     plt.show()
-    fig.savefig(f'{path}/{fig_name}')
+    fig.savefig(f'{path}/{output_dir}/{fig_name}')
 
 def setup_seed(seed):
      torch.manual_seed(seed)
@@ -106,8 +106,8 @@ def generate_run_config(params):
     return params
 
 def read_df(args):
-    df = pd.read_csv(args.save_csv)
-    df = df.loc[df['converged']==True]
+    df = pd.read_csv(f'{path}/{args.save_csv}')
+    # df = df.loc[df['converged']==True]
     dft_energies = df['dft_energies']
     nnp_energies = df['nnp_energies']
     fig_name = args.fig_name
@@ -140,10 +140,10 @@ def main(read_csv=False):
     # set logger
     logger = logging.getLogger(__file__)
     logger.setLevel(logging.DEBUG)
-    runHandler = logging.FileHandler(f'{path}/args.predict_log', mode='w')
+    runHandler = logging.FileHandler(f'{path}/{args.output_dir}/args.predict_log', mode='w')
     runHandler.setLevel(logging.DEBUG)
     runHandler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)7s - %(message)s"))
-    errorHandler = logging.FileHandler(f'{path}/args.error_log', mode='w')
+    errorHandler = logging.FileHandler(f'{path}/{args.output_dir}/args.error_log', mode='w')
     errorHandler.setLevel(logging.WARNING)
     errorHandler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)7s - %(message)s"))
     logger.addHandler(runHandler)
@@ -152,15 +152,18 @@ def main(read_csv=False):
     logger.warning = CallsCounter(logger.warning)
     logger.info = CallsCounter(logger.info)
     # load model
-    state_dict = torch.load(f'{path}/{args.load_model}') 
-    model = PainnModel(
-        num_interactions=state_dict["num_layer"],
-        hidden_state_size=state_dict["node_size"],
-        cutoff=state_dict["cutoff"],
+    state_dict = torch.load(f'{path}/{args.load_model}', map_location=torch.device(args.device)) 
+    model = MACE(
+        cutoff = args.cutoff,
+        num_interactions = args.num_interactions,
+        num_features = args.node_size,
+        correlation = 3,
+        species = ['Pt'], 
+        compute_forces = bool(args.forces_weight),
     )
     model.to(args.device)
     model.load_state_dict(state_dict["model"])
-    calc = MLCalculator(model)
+    calc = MLCalculator(model, compute_forces=bool(args.forces_weight))
 
     images = read(f'{path}/{args.dataset}', ':')
     count = 0
@@ -189,10 +192,10 @@ def main(read_csv=False):
             'nnp_energies':nnp_energies,
             }
     df = pd.DataFrame(tuples)
-    df.to_csv(f'{path}/{args.save_csv}')
-    return df['dft_energies'], df['nnp_energies'], args.fig_name
+    df.to_csv(f'{path}/{args.output_dir}/{args.save_csv}')
+    return df['dft_energies'], df['nnp_energies'], args.fig_name, args.output_dir
 
 if __name__ == "__main__":
-    dft_energies, nnp_energies, fig_name = main(read_csv=False)
-    plot_fitting(dft_energies, nnp_energies, fig_name=fig_name)
+    dft_energies, nnp_energies, fig_name, output_dir = main(read_csv=False)
+    plot_fitting(dft_energies, nnp_energies, fig_name=fig_name, output_dir=output_dir)
     print('Predict done!')

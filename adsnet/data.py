@@ -9,7 +9,7 @@ from typing import List
 from scipy.spatial import distance_matrix
 
 class AseData(torch.utils.data.Dataset):
-    def __init__(self, ase_data=None, cutoff=5.0, **kwargs):
+    def __init__(self, ase_data=None, cutoff=5.0, compute_forces=False, **kwargs):
         super().__init__(**kwargs)
         
         # To do: Add atoms.info filter (required included data)
@@ -21,6 +21,7 @@ class AseData(torch.utils.data.Dataset):
             self.images = ase_data
         
         self.cutoff = cutoff
+        self.compute_forces = compute_forces
         
     def __len__(self):
         return len(self.images)
@@ -50,6 +51,8 @@ class AseData(torch.utils.data.Dataset):
 
         atoms_data['ads_idx_pairs'] = torch.from_numpy(ads_idx_pairs)
         atoms_data['ads_edge_diff'] = torch.from_numpy(ads_edge_diff).float()
+        if self.compute_forces:
+            atoms_data['ads_edge_diff'].requires_grad_()
         atoms_data['ads_num_pairs'] = torch.tensor([ads_idx_pairs.shape[0]])
         atoms_data['ads_num_atoms'] = torch.tensor([len(atoms_data['ads_idx'])])
         atoms_data['ads_atomic_num'] = torch.tensor([atoms.numbers[atoms_data['ads_idx']]])

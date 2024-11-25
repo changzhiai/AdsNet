@@ -50,7 +50,7 @@ def plot_energy_rmse(df, i, dir, save):
     ax.tick_params(axis="y")
     if save:
         fig.savefig(f'{path}/{save}.png')
-    plt.show()
+    # plt.show()
     return ax
 
 def plot_forces_rmse(df, i, dir, save):
@@ -61,7 +61,7 @@ def plot_forces_rmse(df, i, dir, save):
     ax.tick_params(axis="y")
     if save:
         fig.savefig(f'{path}/{save}_forces.png')
-    plt.show()
+    # plt.show()
     return ax
 
 if __name__ == '__main__':
@@ -71,4 +71,4 @@ if __name__ == '__main__':
     df = pd.read_csv(f'{path}/{save}.csv', skiprows=[])
     print(df)
     plot_energy_rmse(df, 1, 'Binding energy learning curve', save)
-    plot_forces_rmse(df, 1, 'Adsorbate forces learning curve', save)
+    # plot_forces_rmse(df, 1, 'Adsorbate forces learning curve', save)

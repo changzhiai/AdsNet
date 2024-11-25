@@ -1,11 +1,18 @@
-import torch
 import numpy as np
-import argparse,json,logging,math
-from ase.io import read
-import unittest,os,time,sys,toml,itertools
+import math
+import json, os, sys, toml
+from pathlib import Path
+import argparse
+import logging
+import itertools
+import torch
+import time
+import warnings
+warnings.filterwarnings("ignore", 
+    message="The TorchScript type system doesn't support instance-level annotations")
 
 from adsnet.data import AseData,collate_atomsdata
-from adsnet.painn import PainnModel
+from adsnet.mace import MACE
 
 path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 
@@ -19,13 +26,14 @@ def setup_seed(seed):
 def get_arguments(arg_list=None):
     parser = argparse.ArgumentParser(
         description="Train graph convolution network", fromfile_prefix_chars="+"
-    )      
+    )     
     parser.add_argument(
         "--cfg",
         type=str,
         default=f'{path}/arguments.toml',
         help="Path to config file. e.g. 'arguments.toml'"
     )
+    
     return parser.parse_args(arg_list)
 
 def split_data(dataset, args):
@@ -57,7 +65,7 @@ def forces_criterion(predicted, target, reduction="mean"):
     # node_count is (bs) tensor
     diff = predicted - target
     total_squared_norm = torch.linalg.norm(diff, dim=1)  # bs
-    if reduction == "mean": # mean squared error
+    if reduction == "mean":
         scalar = torch.mean(total_squared_norm)
     elif reduction == "sum":
         scalar = torch.sum(total_squared_norm)
@@ -75,10 +83,10 @@ def get_normalization(dataset, per_atom=True):
             # Estimate "bias" from 1 sample
             # to avoid overflows for large valued datasets
             if per_atom:
-                bias = sample["ads_energy"] / sample["num_atoms"]
+                bias = sample["energy"] / sample["num_atoms"]
             else:
-                bias = sample["ads_energy"]
-        x = sample["ads_energy"]
+                bias = sample["energy"]
+        x = sample["energy"]
         if per_atom:
             x = x / sample["num_atoms"]
         x -= bias
@@ -236,13 +244,17 @@ def main():
 
     # Create device
     device = torch.device(args.device)
+    # Put a tensor on the device before loading data
+    # This way the GPU appears to be in use when other users run gpustat
     torch.tensor([0], device=device)
 
     # Setup dataset and loader
     logging.info("loading data %s", args.dataset)
+
     dataset = AseData(
         f'{path}/{args.dataset}',
         cutoff = args.cutoff,
+        compute_forces = bool(args.forces_weight),
     )
 
     datasplits = split_data(dataset, args)
@@ -258,6 +270,10 @@ def main():
         args.batch_size, 
         collate_fn=collate_atomsdata,
     )
+
+    # datamodule.setup()
+    # train_loader = datamodule.train_dataloader
+    # val_loader = datamodule.val_dataloader
     
     logging.info('Dataset size: {}, training set size: {}, validation set size: {}'.format(
         len(dataset),
@@ -273,14 +289,13 @@ def main():
         )
         logging.debug("target_mean=%f, target_stddev=%f" % (target_mean, target_stddev))
 
-    net = PainnModel(
-        num_interactions=args.num_interactions, 
-        hidden_state_size=args.node_size,
-        cutoff=args.cutoff,
-        normalization=args.normalization,
-        target_mean=target_mean.tolist() if args.normalization else [0.0],
-        target_stddev=target_stddev.tolist() if args.normalization else [1.0],
-        atomwise_normalization=args.atomwise_normalization,
+    net = MACE(
+        cutoff = args.cutoff,
+        num_interactions = args.num_interactions,
+        num_features = args.node_size,
+        correlation = 3,
+        species = ['Pt'], 
+        compute_forces = bool(args.forces_weight),
     )
     net.to(device)
 
@@ -303,11 +318,11 @@ def main():
 
     if args.load_model:
         logging.info(f"Load model from {args.load_model}")
-        state_dict = torch.load(f'{args.output_dir}/best_model.pth')
+        state_dict = torch.load(args.load_model, map_location=torch.device(args.device))
         net.load_state_dict(state_dict["model"])
-        step = state_dict["step"]
-        best_val_loss = state_dict["best_val_loss"]
-        optimizer.load_state_dict(state_dict["optimizer"])
+#        step = state_dict["step"]
+#        best_val_loss = state_dict["best_val_loss"]
+#        optimizer.load_state_dict(state_dict["optimizer"])
         scheduler.load_state_dict(state_dict["scheduler"])
     
     for epoch in itertools.count():
@@ -315,16 +330,17 @@ def main():
             start = time.time()
             # Transfer to 'device'
             batch = {
-                k: v.to(device=device, non_blocking=True)
+                k: v.to(device=device)
                 for (k, v) in batch_host.items()
             }
+            
             # Reset gradient
             optimizer.zero_grad()
 
-            # Forward, backward and optimize
             outputs = net(
-                batch, compute_forces=bool(args.forces_weight)
+                batch.copy()
             )
+
             energy_loss = criterion(outputs["ads_energy"], batch["ads_energy"])
             if args.forces_weight:
                 forces_loss = forces_criterion(outputs['ads_forces'], batch['ads_forces'])
@@ -412,10 +428,5 @@ def main():
                 )
                 sys.exit(0)
 
-class TrainTestCase(unittest.TestCase):
-
-    def test_Train(self):
-        main()
-
-if __name__ == '__main__':
-    unittest.main()
+if __name__ == "__main__":
+    main()

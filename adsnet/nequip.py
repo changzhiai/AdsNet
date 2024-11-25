@@ -428,7 +428,8 @@ class ConvNetLayer(torch.nn.Module):
 
         self.linear_nbr = Linear(
             irreps_in=irreps_in['node_attr'],
-            irreps_out=feature_irreps_in,
+            # irreps_out=feature_irreps_in,
+            irreps_out=edge_diff_irreps,
             internal_weights=True,
             shared_weights=True,
         )
@@ -495,12 +496,23 @@ class ConvNetLayer(torch.nn.Module):
                 irreps_in['node_attr'],
                 feature_irreps_out,
             )
-
+    #    self.linear_nbr = Linear(
+    #         irreps_in=irreps_in['node_attr'],
+    #         # irreps_out=feature_irreps_in,
+    #         irreps_out=edge_diff_irreps,
+    #         internal_weights=True,
+    #         shared_weights=True,
+    #     )
         self.sc_nbr = FullyConnectedTensorProduct(
-                feature_irreps_in,
                 irreps_in['node_attr'],
-                feature_irreps_out,
+                edge_diff_irreps,
+                edge_diff_irreps,
             )
+        # self.sc_nbr = FullyConnectedTensorProduct(
+        #         feature_irreps_in,
+        #         irreps_in['node_attr'],
+        #         feature_irreps_out,
+        #     )
         self.iter = iter
 
     def forward(self, data):
@@ -554,6 +566,8 @@ class ConvNetLayer(torch.nn.Module):
         # x[idx] = ads_nbr_attr
         ads_edge_features = self.tp(
             x[idx], data['ads_edge_diff_embedding'], weight
+            # x[idx], self.sc_nbr(data['ads_nbr_attr'], data['ads_edge_diff_embedding']), weight
+            # x[idx], data['ads_edge_diff_embedding']*ads_nbr_attr, weight
             # data['ads_nbr_feat'], data['ads_edge_diff_embedding'], weight
         )
         
@@ -760,6 +774,7 @@ class NequipModel(torch.nn.Module):
         nonlinearity_scalars: Dict[int, Callable] = {"e": "ssp", "o": "tanh"},
         nonlinearity_gates: Dict[int, Callable] = {"e": "ssp", "o": "abs"},
         convolution_kwargs: dict = {},
+        compute_forces = False,
         **kwargs,
     ) -> None:
         """Nequip model.
@@ -789,6 +804,7 @@ class NequipModel(torch.nn.Module):
         self.num_features = num_features
         self.lmax = lmax
         self.parity = parity
+        self.compute_forces = compute_forces
         
         if num_elements is None:
             num_elements = len(species) if species is not None else 119
@@ -875,6 +891,7 @@ class NequipModel(torch.nn.Module):
                 irreps_out=o3.Irreps('1x0e'),
             ),
         )
+        self.atomwise_reduce = AtomwiseReduce(output_key='ads_energy')
         
     def forward(self, data):        
         for m in self.embeddings.values():
@@ -884,6 +901,22 @@ class NequipModel(torch.nn.Module):
             data = m(data)
         
         data['ads_atomic_energy'] = self.readout_mlp(data['ads_node_feat']).squeeze()
+        data = self.atomwise_reduce(data)
+        
+        if self.compute_forces:
+            dE_ddiff = torch.autograd.grad(
+                data['ads_energy'],
+                data['ads_edge_diff'],
+                grad_outputs=torch.ones_like(data['ads_energy']),
+                retain_graph=True,
+                create_graph=True,
+            )[0]
+            ads_idx_pairs = data['ads_idx_pairs_batch']
+            _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True) 
+            i_forces = torch.zeros_like(data['ads_coords']).index_add(0, idx, dE_ddiff)
+            ads_forces = i_forces
+            data['ads_forces'] = ads_forces
+
         return data
     
 class AtomwiseReduce(nn.Module):
@@ -911,6 +944,8 @@ class AtomwiseReduce(nn.Module):
             data['ads_num_atoms'], 
             dtype=data['ads_edge_diff'].dtype
         )  
+        if not bool(data['ads_atomic_energy'].shape):
+            data['ads_atomic_energy'] = data['ads_atomic_energy'].unsqueeze(0)
         y.index_add_(0, image_idx, data['ads_atomic_energy'])
         
         if self.aggregation_mode == "mean":

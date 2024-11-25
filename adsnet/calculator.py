@@ -18,7 +18,8 @@ class MLCalculator(Calculator):
         self.model = model
         self.model_device = next(model.parameters()).device
         self.cutoff = model.cutoff
-        self.asedata = AseData(self.cutoff)
+        self.compute_forces = model.compute_forces
+        self.asedata = AseData(cutoff=self.cutoff, compute_forces=self.compute_forces)
         self.energy_scale = energy_scale
         self.forces_scale = forces_scale
 #        self.stress_scale = stress_scale
@@ -41,6 +42,10 @@ class MLCalculator(Calculator):
         }
 
         model_results = self.model(model_inputs)
+
+        # from adsnet.mace import AtomwiseReduce
+        # m = AtomwiseReduce(output_key='ads_energy')
+        # model_results = m(model_results)
 
         results = {}
 

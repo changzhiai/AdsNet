@@ -1,7 +1,6 @@
 import numpy as np
 import math
 import json, os, sys, toml
-from pathlib import Path
 import argparse
 import logging
 import itertools
@@ -12,7 +11,7 @@ warnings.filterwarnings("ignore",
     message="The TorchScript type system doesn't support instance-level annotations")
 
 from adsnet.data import AseData,collate_atomsdata
-from adsnet.nequip import NequipModel,AtomwiseReduce
+from adsnet.nequip import NequipModel
 
 path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 
@@ -122,9 +121,6 @@ def eval_model(model, dataloader, device, forces_weight):
             k: v.to(device=device, non_blocking=True) for k, v in batch.items()
         }
         out = model(device_batch)
-
-        m = AtomwiseReduce(output_key='ads_energy')
-        out = m(out)
 
         count += batch["ads_energy"].shape[0]
         energy_loss = criterion(out["ads_energy"], device_batch["ads_energy"]).item() 
@@ -257,6 +253,7 @@ def main():
     dataset = AseData(
         f'{path}/{args.dataset}',
         cutoff = args.cutoff,
+        compute_forces = bool(args.forces_weight),
     )
 
     datasplits = split_data(dataset, args)
@@ -293,8 +290,9 @@ def main():
 
     net = NequipModel(
         cutoff = args.cutoff,
-        num_interactions = 4,
-        num_features = 64,
+        num_interactions = args.num_interactions,
+        num_features = args.node_size,
+        compute_forces = bool(args.forces_weight),
     )
     net.to(device)
 
@@ -317,7 +315,7 @@ def main():
 
     if args.load_model:
         logging.info(f"Load model from {args.load_model}")
-        state_dict = torch.load(args.load_model)
+        state_dict = torch.load(args.load_model, map_location=torch.device(args.device))
         net.load_state_dict(state_dict["model"])
 #        step = state_dict["step"]
 #        best_val_loss = state_dict["best_val_loss"]
@@ -339,10 +337,6 @@ def main():
             outputs = net(
                 batch.copy()
             )
-            
-            # from curator.layer._atomwise_reduce import AtomwiseReduce
-            m = AtomwiseReduce(output_key='ads_energy')
-            outputs = m(outputs)
 
             energy_loss = criterion(outputs["ads_energy"], batch["ads_energy"])
             if args.forces_weight:

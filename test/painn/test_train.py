@@ -243,6 +243,7 @@ def main():
     dataset = AseData(
         f'{path}/{args.dataset}',
         cutoff = args.cutoff,
+        compute_forces = bool(args.forces_weight),
     )
 
     datasplits = split_data(dataset, args)
@@ -281,6 +282,7 @@ def main():
         target_mean=target_mean.tolist() if args.normalization else [0.0],
         target_stddev=target_stddev.tolist() if args.normalization else [1.0],
         atomwise_normalization=args.atomwise_normalization,
+        compute_forces=bool(args.forces_weight)
     )
     net.to(device)
 
@@ -303,7 +305,7 @@ def main():
 
     if args.load_model:
         logging.info(f"Load model from {args.load_model}")
-        state_dict = torch.load(f'{args.output_dir}/best_model.pth')
+        state_dict = torch.load(f'{args.output_dir}/best_model.pth', map_location=torch.device(args.device))
         net.load_state_dict(state_dict["model"])
         step = state_dict["step"]
         best_val_loss = state_dict["best_val_loss"]
@@ -323,7 +325,7 @@ def main():
 
             # Forward, backward and optimize
             outputs = net(
-                batch, compute_forces=bool(args.forces_weight)
+                batch
             )
             energy_loss = criterion(outputs["ads_energy"], batch["ads_energy"])
             if args.forces_weight:

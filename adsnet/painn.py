@@ -38,6 +38,11 @@ class PainnMessage(nn.Module):
             nn.SiLU(),
             nn.Linear(node_size, node_size * 3),
         )
+        self.scalar_message_mlp2 = nn.Sequential(
+            nn.Linear(node_size, node_size),
+            nn.SiLU(),
+            nn.Linear(node_size, node_size * 3),
+        )
         
         self.filter_layer = nn.Linear(edge_size, node_size * 3)
         
@@ -45,31 +50,45 @@ class PainnMessage(nn.Module):
         # remember to use v_j, s_j but not v_i, s_i        
         filter_weight = self.filter_layer(sinc_expansion(edge_dist, self.edge_size, self.cutoff))
         filter_weight = filter_weight * cosine_cutoff(edge_dist, self.cutoff).unsqueeze(-1)
-        # scalar_out = self.scalar_message_mlp(all_scalar[ads_idx_pairs[:, 1]])    
-        scalar_out = self.scalar_message_mlp(all_scalar[ads_idx_pairs[:, 0]])     
-        filter_out = filter_weight * scalar_out 
+        # scalar_out = self.scalar_message_mlp(all_scalar[ads_idx_pairs[:, 1]])
+        _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True)
+        scalar_out = self.scalar_message_mlp(node_scalar[idx])
+        # row_norms = torch.norm(scalar_out, p=2, dim=1, keepdim=True)
+        # scalar_out = scalar_out / row_norms
+
+        # scalar_out2 = self.scalar_message_mlp2(all_scalar[ads_idx_pairs[:, 1]])
+        # row_norms2 = torch.norm(scalar_out2, p=2, dim=1, keepdim=True)
+        # scalar_out2 = scalar_out2 / row_norms2
+
+        filter_out = filter_weight * scalar_out
+        # filter_out = filter_weight * (scalar_out * scalar_out2)
         
         gate_state_vector, gate_edge_vector, message_scalar = torch.split(
             filter_out, 
             self.node_size,
             dim = 1,
         )
-        
+
+        ads_nbr_scalar = all_scalar[ads_idx_pairs[:, 1]]
         # message_vector =  all_vector[ads_idx_pairs[:, 1]] * gate_state_vector.unsqueeze(1) 
-        message_vector =  all_vector[ads_idx_pairs[:, 0]] * gate_state_vector.unsqueeze(1) # try here
+        # message_vector =  node_vector[idx] * ads_nbr_scalar.unsqueeze(1) * gate_state_vector.unsqueeze(1) # try here 
+        message_vector =  node_vector[idx] * gate_state_vector.unsqueeze(1) # try here
+        # edge_vector = gate_edge_vector.unsqueeze(1) * ads_nbr_scalar.unsqueeze(1) * (ads_edge_diff / edge_dist.unsqueeze(-1)).unsqueeze(-1)
         edge_vector = gate_edge_vector.unsqueeze(1) * (ads_edge_diff / edge_dist.unsqueeze(-1)).unsqueeze(-1)
         message_vector = message_vector + edge_vector
         
         # sum message
         residual_scalar = torch.zeros_like(node_scalar)
         residual_vector = torch.zeros_like(node_vector)
-        _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True)
+        # _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True)
         residual_scalar.index_add_(0, idx, message_scalar)
         residual_vector.index_add_(0, idx, message_vector)
         
         # new node state
         new_node_scalar = node_scalar + residual_scalar
         new_node_vector = node_vector + residual_vector
+        # new_node_scalar = residual_scalar
+        # new_node_vector = residual_vector
         
         return new_node_scalar, new_node_vector
 
@@ -106,18 +125,20 @@ class PainnUpdate(nn.Module):
         delta_s = a_sv * inner_prod + a_ss
         
         return node_scalar + delta_s, node_vector + delta_v
+        # return delta_s, delta_v
 
 class PainnModel(nn.Module):
     """PainnModel without ads_idx_pairs updating"""
     def __init__(
         self, 
-        num_interactions, 
-        hidden_state_size, 
+        num_interactions,
+        hidden_state_size,
         cutoff,
         normalization=True,
         target_mean=[0.0],
         target_stddev=[1.0],
         atomwise_normalization=True, 
+        compute_forces = False,
         **kwargs,
     ):
         super().__init__()
@@ -127,6 +148,7 @@ class PainnModel(nn.Module):
         self.num_interactions = num_interactions
         self.hidden_state_size = hidden_state_size
         self.edge_embedding_size = 20
+        self.compute_forces = compute_forces
         
         # Setup atom embeddings
         self.atom_embedding = nn.Embedding(num_embedding, hidden_state_size)
@@ -172,7 +194,7 @@ class PainnModel(nn.Module):
             torch.tensor(target_mean[0]), requires_grad=False
         )
         
-    def forward(self, input_dict, compute_forces=False):
+    def forward(self, input_dict):
         num_atoms = input_dict['num_atoms']
         ads_num_pairs = input_dict['ads_num_pairs']
         ads_atomic_num = input_dict['ads_atomic_num']
@@ -192,7 +214,7 @@ class PainnModel(nn.Module):
         ads_idx_offset = torch.repeat_interleave(ads_idx_offset, ads_num_pairs)
         ads_idx_pairs = ads_idx_pairs + ads_idx_offset.unsqueeze(-1)        
         ads_edge_diff = input_dict['ads_edge_diff']
-        if compute_forces:
+        if self.compute_forces:
             ads_edge_diff.requires_grad_()
         edge_dist = torch.linalg.norm(ads_edge_diff, dim=1)
         
@@ -222,14 +244,20 @@ class PainnModel(nn.Module):
                                 )
         image_idx = torch.repeat_interleave(image_idx, ads_num_atoms)
         
-        ads_energy = torch.zeros_like(ads_num_atoms).float()     
-        ads_energy.index_add_(0, image_idx, node_scalar)
+        ads_energy = torch.zeros_like(ads_num_atoms).float()
+        
+        if not bool(node_scalar.shape):
+            node_scalar = node_scalar.unsqueeze(0)
 
-        node_vector = self.readout_forces(node_vector)
-        node_vector.squeeze_()
-        ads_forces = torch.zeros_like(ads_coords).float()
-        if compute_forces:
-            ads_forces.index_add_(0, image_idx, node_vector)
+        ads_energy.index_add_(0, image_idx, node_scalar)
+        result_dict = {}
+        result_dict['ads_energy'] = ads_energy
+
+        # node_vector = self.readout_forces(node_vector)
+        # node_vector.squeeze_()
+        # ads_forces = torch.zeros_like(ads_coords).float()
+        # if compute_forces:
+        #     ads_forces.index_add_(0, image_idx, node_vector)
 
         # Apply (de-)normalization
         # if self.normalization:
@@ -239,26 +267,27 @@ class PainnModel(nn.Module):
         #     if self.atomwise_normalization:
         #         mean_shift = input_dict["num_atoms"] * mean_shift
         #     energy = energy + mean_shift
+        
+        if self.compute_forces:
+            dE_ddiff = torch.autograd.grad(
+                ads_energy,
+                ads_edge_diff,
+                grad_outputs=torch.ones_like(ads_energy),
+                retain_graph=True,
+                create_graph=True,
+            )[0]
+            
+            _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True)
+            # diff = R_j - R_i, so -dE/dR_j = -dE/ddiff, -dE/R_i = dE/ddiff  
+            i_forces = torch.zeros_like(input_dict['ads_coords']).index_add(0, idx, dE_ddiff)
+            # j_forces = torch.zeros_like(input_dict['ads_coords']).index_add(0, ads_idx_pairs[:, 1], -dE_ddiff)
+            # ads_forces = i_forces + j_forces
+            ads_forces = i_forces
+            
+            result_dict['ads_forces'] = ads_forces
 
-        result_dict = {'ads_energy': ads_energy,
-                       'ads_forces': ads_forces
-                       }
-        
-        
-        # if compute_forces:
-        #     dE_ddiff = torch.autograd.grad(
-        #         energy,
-        #         ads_edge_diff,
-        #         grad_outputs=torch.ones_like(energy),
-        #         retain_graph=True,
-        #         create_graph=True,
-        #     )[0]
-            
-            ## diff = R_j - R_i, so -dE/dR_j = -dE/ddiff, -dE/R_i = dE/ddiff  
-            # i_forces = torch.zeros_like(input_dict['coord']).index_add(0, ads_idx_pairs[:, 0], dE_ddiff)
-            # j_forces = torch.zeros_like(input_dict['coord']).index_add(0, ads_idx_pairs[:, 1], -dE_ddiff)
-            # forces = i_forces + j_forces
-            
-            # result_dict['forces'] = forces
+        # result_dict = {'ads_energy': ads_energy,
+        #                'ads_forces': ads_forces
+        #                }
             
         return result_dict
