@@ -485,8 +485,8 @@ class RealAgnosticResidualInteractionBlock(torch.nn.Module):
         
         edge_feat = self.conv_tp(
             node_feat[idx],
-            self.sc_nbr(ads_nbr_attr, edge_diff_embedding),
-            # edge_diff_embedding,
+            # self.sc_nbr(ads_nbr_attr, edge_diff_embedding),
+            edge_diff_embedding,
             tp_weights,
         )
         node_feat = scatter_add(
@@ -1119,7 +1119,9 @@ class AtomwiseReduce(nn.Module):
         y = torch.zeros_like(
             data['ads_num_atoms'], 
             dtype=data['ads_edge_diff'].dtype
-        )  
+        ) 
+        if not bool(data['ads_atomic_energy'].shape):
+            data['ads_atomic_energy'] = data['ads_atomic_energy'].unsqueeze(0)
         y.index_add_(0, image_idx, data['ads_atomic_energy'])
         
         if self.aggregation_mode == "mean":

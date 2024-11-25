@@ -155,6 +155,7 @@ def main(read_csv=False):
         num_interactions=state_dict["num_layer"],
         hidden_state_size=state_dict["node_size"],
         cutoff=state_dict["cutoff"],
+        compute_forces = bool(args.forces_weight),
     )
     model.to(args.device)
     model.load_state_dict(state_dict["model"])

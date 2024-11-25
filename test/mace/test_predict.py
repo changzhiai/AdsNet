@@ -158,11 +158,12 @@ def main(read_csv=False):
         num_interactions = args.num_interactions,
         num_features = args.node_size,
         correlation = 3,
-        species = None, 
+        species = ['Pt'], 
+        compute_forces = bool(args.forces_weight),
     )
     model.to(args.device)
     model.load_state_dict(state_dict["model"])
-    calc = MLCalculator(model)
+    calc = MLCalculator(model, compute_forces=bool(args.forces_weight))
 
     images = read(f'{path}/{args.dataset}', ':')
     count = 0

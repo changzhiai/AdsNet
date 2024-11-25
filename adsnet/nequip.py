@@ -565,7 +565,8 @@ class ConvNetLayer(torch.nn.Module):
         #     x[idx] = x[idx]
         # x[idx] = ads_nbr_attr
         ads_edge_features = self.tp(
-            x[idx], self.sc_nbr(data['ads_nbr_attr'], data['ads_edge_diff_embedding']), weight
+            x[idx], data['ads_edge_diff_embedding'], weight
+            # x[idx], self.sc_nbr(data['ads_nbr_attr'], data['ads_edge_diff_embedding']), weight
             # x[idx], data['ads_edge_diff_embedding']*ads_nbr_attr, weight
             # data['ads_nbr_feat'], data['ads_edge_diff_embedding'], weight
         )
