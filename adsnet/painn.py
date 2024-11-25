@@ -50,17 +50,14 @@ class PainnMessage(nn.Module):
         # remember to use v_j, s_j but not v_i, s_i        
         filter_weight = self.filter_layer(sinc_expansion(edge_dist, self.edge_size, self.cutoff))
         filter_weight = filter_weight * cosine_cutoff(edge_dist, self.cutoff).unsqueeze(-1)
+        scalar_out = self.scalar_message_mlp(node_scalar)
         # scalar_out = self.scalar_message_mlp(all_scalar[ads_idx_pairs[:, 1]])
-        _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True)
-        scalar_out = self.scalar_message_mlp(node_scalar[idx])
-        # row_norms = torch.norm(scalar_out, p=2, dim=1, keepdim=True)
-        # scalar_out = scalar_out / row_norms
+        # _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True)
+        # scalar_out = self.scalar_message_mlp(node_scalar[idx])
 
-        # scalar_out2 = self.scalar_message_mlp2(all_scalar[ads_idx_pairs[:, 1]])
-        # row_norms2 = torch.norm(scalar_out2, p=2, dim=1, keepdim=True)
-        # scalar_out2 = scalar_out2 / row_norms2
 
-        filter_out = filter_weight * scalar_out
+        # filter_out = filter_weight * scalar_out
+        filter_out = filter_weight * scalar_out[ads_idx_pairs[:, 1]]
         # filter_out = filter_weight * (scalar_out * scalar_out2)
         
         gate_state_vector, gate_edge_vector, message_scalar = torch.split(
@@ -69,10 +66,10 @@ class PainnMessage(nn.Module):
             dim = 1,
         )
 
-        ads_nbr_scalar = all_scalar[ads_idx_pairs[:, 1]]
-        # message_vector =  all_vector[ads_idx_pairs[:, 1]] * gate_state_vector.unsqueeze(1) 
+        # ads_nbr_scalar = all_scalar[ads_idx_pairs[:, 1]]
+        message_vector =  node_vector[ads_idx_pairs[:, 1]] * gate_state_vector.unsqueeze(1) 
         # message_vector =  node_vector[idx] * ads_nbr_scalar.unsqueeze(1) * gate_state_vector.unsqueeze(1) # try here 
-        message_vector =  node_vector[idx] * gate_state_vector.unsqueeze(1) # try here
+        # message_vector =  node_vector[idx] * gate_state_vector.unsqueeze(1) # try here
         # edge_vector = gate_edge_vector.unsqueeze(1) * ads_nbr_scalar.unsqueeze(1) * (ads_edge_diff / edge_dist.unsqueeze(-1)).unsqueeze(-1)
         edge_vector = gate_edge_vector.unsqueeze(1) * (ads_edge_diff / edge_dist.unsqueeze(-1)).unsqueeze(-1)
         message_vector = message_vector + edge_vector
@@ -81,10 +78,15 @@ class PainnMessage(nn.Module):
         residual_scalar = torch.zeros_like(node_scalar)
         residual_vector = torch.zeros_like(node_vector)
         # _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True)
-        residual_scalar.index_add_(0, idx, message_scalar)
-        residual_vector.index_add_(0, idx, message_vector)
+        # residual_scalar.index_add_(0, idx, message_scalar)
+        # residual_vector.index_add_(0, idx, message_vector)
+        residual_scalar.index_add_(0, ads_idx_pairs[:, 0], message_scalar)
+        residual_vector.index_add_(0, ads_idx_pairs[:, 0], message_vector)
         
         # new node state
+        # new_node_scalar = node_scalar + residual_scalar
+        # new_node_vector = node_vector + residual_vector
+        # all_scalar[torch.unique(ads_idx_pairs[:, 0])]
         new_node_scalar = node_scalar + residual_scalar
         new_node_vector = node_vector + residual_vector
         # new_node_scalar = residual_scalar
@@ -212,7 +214,22 @@ class PainnModel(nn.Module):
             dim=0
         )
         ads_idx_offset = torch.repeat_interleave(ads_idx_offset, ads_num_pairs)
-        ads_idx_pairs = ads_idx_pairs + ads_idx_offset.unsqueeze(-1)        
+        ads_idx_pairs = ads_idx_pairs + ads_idx_offset.unsqueeze(-1)
+        _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True)
+        mapper = []
+        for a, b in zip(ads_idx_pairs[:, 0], idx):
+            if [a, b] not in mapper:
+                mapper.append([a, b])
+        mapper = torch.tensor(mapper)
+        ads_idx_pairs_new = ads_idx_pairs.clone()
+        for i in range(ads_idx_pairs.size(0)):  
+            for j in range(ads_idx_pairs.size(1)):  
+                key = ads_idx_pairs[i, j].item()  # Get the current element
+                value = mapper[mapper[:, 0]==key, 1]
+                if value.numel() > 0:  # If a replacement exists
+                    ads_idx_pairs_new[i, j] = value.item()
+        # ads_idx_pairs = ads_idx_pairs_new
+           
         ads_edge_diff = input_dict['ads_edge_diff']
         if self.compute_forces:
             ads_edge_diff.requires_grad_()
@@ -221,6 +238,7 @@ class PainnModel(nn.Module):
         # node_scalar = self.atom_embedding(ads_atomic_num)
         all_scalar = self.atom_embedding(input_dict['elems'])
         node_scalar = all_scalar[torch.unique(ads_idx_pairs[:, 0])]
+        # node_scalar = all_scalar[ads_idx_pairs[:, 0]]
         # node_vector = torch.zeros((ads_coords.shape[0], 3, self.hidden_state_size),
         #                           device=ads_coords.device,
         #                           dtype=ads_coords.dtype,
@@ -230,10 +248,13 @@ class PainnModel(nn.Module):
                                   dtype=coords.dtype,
                                  )
         node_vector = all_vector[torch.unique(ads_idx_pairs[:, 0])]
+        # node_vector = all_vector[ads_idx_pairs[:, 0]]
+        # node_vector = all_vector[ads_idx_pairs[:, 1]]
         
         for message_layer, update_layer in zip(self.message_layers, self.update_layers):
             node_scalar, node_vector = message_layer(node_scalar, node_vector, \
-                ads_idx_pairs, ads_edge_diff, edge_dist, all_scalar, all_vector)
+                ads_idx_pairs_new, ads_edge_diff, edge_dist, all_scalar, all_vector)
+                # ads_idx_pairs, ads_edge_diff, edge_dist, all_scalar, all_vector)
             node_scalar, node_vector = update_layer(node_scalar, node_vector)
         
         node_scalar = self.readout_mlp(node_scalar)
@@ -277,12 +298,12 @@ class PainnModel(nn.Module):
                 create_graph=True,
             )[0]
             
-            _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True)
+            # _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True)
             # diff = R_j - R_i, so -dE/dR_j = -dE/ddiff, -dE/R_i = dE/ddiff  
-            i_forces = torch.zeros_like(input_dict['ads_coords']).index_add(0, idx, dE_ddiff)
-            # j_forces = torch.zeros_like(input_dict['ads_coords']).index_add(0, ads_idx_pairs[:, 1], -dE_ddiff)
-            # ads_forces = i_forces + j_forces
-            ads_forces = i_forces
+            i_forces = torch.zeros_like(input_dict['ads_coords']).index_add(0, ads_idx_pairs_new[:, 0], dE_ddiff)
+            j_forces = torch.zeros_like(input_dict['ads_coords']).index_add(0, ads_idx_pairs_new[:, 1], -dE_ddiff)
+            ads_forces = i_forces + j_forces
+            # ads_forces = i_forces
             
             result_dict['ads_forces'] = ads_forces
 

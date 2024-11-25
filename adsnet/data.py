@@ -54,9 +54,12 @@ class AseData(torch.utils.data.Dataset):
         if self.compute_forces:
             atoms_data['ads_edge_diff'].requires_grad_()
         atoms_data['ads_num_pairs'] = torch.tensor([ads_idx_pairs.shape[0]])
-        atoms_data['ads_num_atoms'] = torch.tensor([len(atoms_data['ads_idx'])])
+        # atoms_data['ads_num_atoms'] = torch.tensor([len(atoms_data['ads_idx'])])
+        atoms_data['ads_num_atoms'] = torch.tensor([len(np.unique(ads_idx_pairs[:, 0]))])
+        # atoms_data['ads_num_atoms'] = torch.tensor([len(ads_idx_pairs[:, 0])])
         atoms_data['ads_atomic_num'] = torch.tensor([atoms.numbers[atoms_data['ads_idx']]])
-        atoms_data['ads_coords'] = torch.tensor([atoms.positions[atoms_data['ads_idx']]], dtype=torch.float)
+        # atoms_data['ads_coords'] = torch.tensor([atoms.positions[atoms_data['ads_idx']]], dtype=torch.float)
+        atoms_data['ads_coords'] = torch.tensor([atoms.positions[np.unique(ads_idx_pairs[:, 0])]], dtype=torch.float)
         
         try:
             atoms_data['ads_forces'] = torch.tensor(atoms.get_forces()[ads_data['ads_idx']])
@@ -64,7 +67,7 @@ class AseData(torch.utils.data.Dataset):
             pass
         
         return atoms_data
-
+    
     def _get_neighborlist(self, atoms):        
         nl = asap3.FullNeighborList(self.cutoff, atoms)
         pair_i_idx = []
@@ -76,12 +79,39 @@ class AseData(torch.utils.data.Dataset):
             pair_i_idx += [i] * len(indices)  # local index of pair i
             pair_j_idx.append(indices)   # local index of pair j
             ads_edge_diff.append(diff)
+        nbr_i_idx, nbr_j_idx, nbr_edge_diff = [], [], []
+        pair_j_idx, pair_i_idx, ads_edge_diff = pair_j_idx[0].tolist(), pair_i_idx, ads_edge_diff[0].tolist()
+        for j_idx, i_idx, edge_d in sorted(zip(pair_j_idx, pair_i_idx, ads_edge_diff)):
+            nbr_i_idx.append(j_idx)
+            nbr_j_idx.append(i_idx)
+            nbr_edge_diff.append(edge_d)
 
-        pair_j_idx = np.concatenate(pair_j_idx)
-        ads_idx_pairs = np.stack((pair_i_idx, pair_j_idx), axis=1)
-        ads_edge_diff = np.concatenate(ads_edge_diff)
+        pair_i_idx += nbr_i_idx
+        pair_j_idx += nbr_j_idx
+        ads_edge_diff += nbr_edge_diff
+
+        ads_idx_pairs = np.column_stack((pair_i_idx, pair_j_idx))
+        ads_edge_diff = np.array(ads_edge_diff)
         
         return ads_idx_pairs, ads_edge_diff
+
+    # def _get_neighborlist(self, atoms):        
+    #     nl = asap3.FullNeighborList(self.cutoff, atoms)
+    #     pair_i_idx = []
+    #     pair_j_idx = []
+    #     ads_edge_diff = []
+    #     ads_idx = atoms.info['data']['ads_idx']
+    #     for i in ads_idx:
+    #         indices, diff, _ = nl.get_neighbors(i)
+    #         pair_i_idx += [i] * len(indices)  # local index of pair i
+    #         pair_j_idx.append(indices)   # local index of pair j
+    #         ads_edge_diff.append(diff)
+
+    #     pair_j_idx = np.concatenate(pair_j_idx)
+    #     ads_idx_pairs = np.stack((pair_i_idx, pair_j_idx), axis=1)
+    #     ads_edge_diff = np.concatenate(ads_edge_diff)
+        
+    #     return ads_idx_pairs, ads_edge_diff
 
     def _get_neighborlist_simple(self, atoms):
         pos = atoms.get_positions()
