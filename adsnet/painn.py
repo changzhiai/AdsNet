@@ -199,7 +199,7 @@ class PainnModel(nn.Module):
     def forward(self, input_dict):
         num_atoms = input_dict['num_atoms']
         ads_num_pairs = input_dict['ads_num_pairs']
-        ads_atomic_num = input_dict['ads_atomic_num']
+        # ads_atomic_num = input_dict['ads_atomic_num']
         ads_coords = input_dict['ads_coords']
         coords = input_dict['coords']
         ads_num_atoms = input_dict['ads_num_atoms']

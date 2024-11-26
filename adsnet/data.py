@@ -40,6 +40,7 @@ class AseData(torch.utils.data.Dataset):
             ads_data = atoms.info['data']
         except AttributeError as e:
             print(f'Atoms info error: {e}. Please add ads. data into atoms.info!')
+        # print(ads_data, )
         atoms_data.update(ads_data)
         atoms_data['ads_energy'] = torch.tensor(ads_data['ads_energy'], dtype=torch.float)
         atoms_data['ads_idx'] = torch.tensor(ads_data['ads_idx'])
@@ -48,21 +49,28 @@ class AseData(torch.utils.data.Dataset):
             ads_idx_pairs, ads_edge_diff = self._get_neighborlist(atoms)
         else:
             ads_idx_pairs, ads_edge_diff = self._get_neighborlist_simple(atoms)
-
+        
         atoms_data['ads_idx_pairs'] = torch.from_numpy(ads_idx_pairs)
         atoms_data['ads_edge_diff'] = torch.from_numpy(ads_edge_diff).float()
         if self.compute_forces:
             atoms_data['ads_edge_diff'].requires_grad_()
+
+        ads_indices, indices = np.unique(ads_idx_pairs[:, 0], return_index=True)
+        ads_indices = ads_indices[np.argsort(indices)]
         atoms_data['ads_num_pairs'] = torch.tensor([ads_idx_pairs.shape[0]])
         # atoms_data['ads_num_atoms'] = torch.tensor([len(atoms_data['ads_idx'])])
+        # atoms_data['ads_num_atoms'] = torch.tensor([len(ads_indices)])
         atoms_data['ads_num_atoms'] = torch.tensor([len(np.unique(ads_idx_pairs[:, 0]))])
         # atoms_data['ads_num_atoms'] = torch.tensor([len(ads_idx_pairs[:, 0])])
-        atoms_data['ads_atomic_num'] = torch.tensor([atoms.numbers[atoms_data['ads_idx']]])
+        atoms_data['ads_atomic_num'] = torch.tensor([atoms.numbers[atoms_data['ads_idx']]]) # not necessary
         # atoms_data['ads_coords'] = torch.tensor([atoms.positions[atoms_data['ads_idx']]], dtype=torch.float)
-        atoms_data['ads_coords'] = torch.tensor([atoms.positions[np.unique(ads_idx_pairs[:, 0])]], dtype=torch.float)
+        # atoms_data['ads_coords'] = torch.tensor(atoms.positions[np.unique(ads_idx_pairs[:, 0])], dtype=torch.float)
+        atoms_data['ads_coords'] = torch.tensor(atoms.positions[ads_indices], dtype=torch.float)
         
         try:
-            atoms_data['ads_forces'] = torch.tensor(atoms.get_forces()[ads_data['ads_idx']])
+            # atoms_data['ads_forces'] = torch.tensor(atoms.get_forces()[ads_data['ads_idx']])
+            atoms_data['delta_forces'] = torch.tensor(ads_data['delta_forces'])
+            atoms_data['ads_forces'] = torch.tensor(atoms_data['delta_forces'][ads_indices])
         except:
             pass
         
@@ -126,6 +134,7 @@ class AseData(torch.utils.data.Dataset):
 
 def cat_tensors(tensors: List[torch.Tensor]):
     if tensors[0].shape:
+        # print(tensors)
         return torch.cat(tensors)
     return torch.stack(tensors)
 
