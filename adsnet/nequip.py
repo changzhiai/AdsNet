@@ -204,11 +204,11 @@ class AtomwiseLinear(torch.nn.Module):
         ads_idx_pairs_new = mapper_dict[ads_idx_pairs]
         data['ads_idx_pairs_new'] = ads_idx_pairs_new
 
-        data['ads_node_feat'] = data['node_feat'][torch.unique(ads_idx_pairs_new[:, 0])]
-        data['ads_node_attr'] = data['node_attr'][torch.unique(ads_idx_pairs_new[:, 0])]
+        data['ads_node_feat'] = data['node_feat'][torch.unique(ads_idx_pairs[:, 0])]
+        data['ads_node_attr'] = data['node_attr'][torch.unique(ads_idx_pairs[:, 0])]
 
-        data['ads_nbr_feat'] =  data['node_feat'][ads_idx_pairs_new[:, 1]]
-        data['ads_nbr_attr'] =  data['node_attr'][ads_idx_pairs_new[:, 1]]
+        data['ads_nbr_feat'] =  data['node_feat'][ads_idx_pairs[:, 1]]
+        data['ads_nbr_attr'] =  data['node_attr'][ads_idx_pairs[:, 1]]
         
         return data
 
