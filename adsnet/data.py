@@ -70,7 +70,7 @@ class AseData(torch.utils.data.Dataset):
         try:
             # atoms_data['ads_forces'] = torch.tensor(atoms.get_forces()[ads_data['ads_idx']])
             atoms_data['delta_forces'] = torch.tensor(ads_data['delta_forces'])
-            atoms_data['ads_forces'] = torch.tensor(atoms_data['delta_forces'][ads_indices])
+            atoms_data['ads_forces'] = atoms_data['delta_forces'][ads_indices]
         except:
             pass
         

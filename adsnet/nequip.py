@@ -185,6 +185,7 @@ class AtomwiseLinear(torch.nn.Module):
         ads_idx_pairs = data['ads_idx_pairs']  # i, j index
         num_atoms = data['num_atoms']
         ads_num_pairs = data['ads_num_pairs']
+
         ads_idx_offset = torch.cumsum(
             torch.cat((torch.tensor([0], 
                                     device=num_atoms.device,
@@ -193,16 +194,22 @@ class AtomwiseLinear(torch.nn.Module):
             dim=0
         )
         ads_idx_offset = torch.repeat_interleave(ads_idx_offset, ads_num_pairs)
-        ads_idx_pairs = ads_idx_pairs + ads_idx_offset.unsqueeze(-1)        
+        ads_idx_pairs = ads_idx_pairs + ads_idx_offset.unsqueeze(-1)
+        _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True)
+        mapper = torch.stack((ads_idx_pairs[:, 0], idx), dim=1)
+        mapper = torch.unique_consecutive(mapper, dim=0)
+        max_key = ads_idx_pairs.max().item()  
+        mapper_dict = torch.full((max_key + 1,), -1, device=ads_idx_pairs.device, dtype=ads_idx_pairs.dtype)
+        mapper_dict[mapper[:, 0]] = mapper[:, 1] 
+        ads_idx_pairs_new = mapper_dict[ads_idx_pairs]
+        data['ads_idx_pairs_new'] = ads_idx_pairs_new
 
-        data['ads_node_feat'] = data['node_feat'][torch.unique(ads_idx_pairs[:, 0])]
-        data['ads_node_attr'] = data['node_attr'][torch.unique(ads_idx_pairs[:, 0])]
-        data['ads_idx_pairs_batch'] = ads_idx_pairs
+        data['ads_node_feat'] = data['node_feat'][torch.unique(ads_idx_pairs_new[:, 0])]
+        data['ads_node_attr'] = data['node_attr'][torch.unique(ads_idx_pairs_new[:, 0])]
 
-        data['ads_nbr_feat'] =  data['node_feat'][ads_idx_pairs[:, 1]]
-        data['ads_nbr_attr'] =  data['node_attr'][ads_idx_pairs[:, 1]]
+        data['ads_nbr_feat'] =  data['node_feat'][ads_idx_pairs_new[:, 1]]
+        data['ads_nbr_attr'] =  data['node_attr'][ads_idx_pairs_new[:, 1]]
         
-
         return data
 
 class RadialBasis(torch.nn.Module, metaclass=abc.ABCMeta):
@@ -553,26 +560,26 @@ class ConvNetLayer(torch.nn.Module):
             # sc_nbr = self.sc(data['ads_nbr_feat'], ads_nbr_attr)
 
         x = self.linear_1(x)
-        ads_idx_pairs = data['ads_idx_pairs_batch']
+        ads_idx_pairs = data['ads_idx_pairs_new']
         # data['ads_nbr_feat'] =  data['node_feat'][ads_idx_pairs[:, 1]]
         # ads_nbr_attr =  self.linear_nbr(data['ads_nbr_attr'])
 
 
-        _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True)
+        # _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True)
         # if self.iter == 0:
         #     x[idx] = x[idx] + ads_nbr_attr
         # else:
         #     x[idx] = x[idx]
         # x[idx] = ads_nbr_attr
         ads_edge_features = self.tp(
-            x[idx], data['ads_edge_diff_embedding'], weight
+            # x[idx], data['ads_edge_diff_embedding'], weight
             # x[idx], self.sc_nbr(data['ads_nbr_attr'], data['ads_edge_diff_embedding']), weight
             # x[idx], data['ads_edge_diff_embedding']*ads_nbr_attr, weight
-            # data['ads_nbr_feat'], data['ads_edge_diff_embedding'], weight
+            x[ads_idx_pairs[:, 1]], data['ads_edge_diff_embedding'], weight
         )
         
-        # x = scatter_add(ads_edge_features, ads_idx_pairs[:, 0], dim_size=len(x), dim=0)
-        x = scatter_add(ads_edge_features, idx, dim_size=len(x), dim=0)
+        x = scatter_add(ads_edge_features, ads_idx_pairs[:, 0], dim_size=len(x), dim=0)
+        # x = scatter_add(ads_edge_features, idx, dim_size=len(x), dim=0)
 
         # Necessary to get TorchScript to be able to type infer when its not None
         # avg_num_neigh: Optional[float] = self.avg_num_neighbors
@@ -911,10 +918,12 @@ class NequipModel(torch.nn.Module):
                 retain_graph=True,
                 create_graph=True,
             )[0]
-            ads_idx_pairs = data['ads_idx_pairs_batch']
-            _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True) 
-            i_forces = torch.zeros_like(data['ads_coords']).index_add(0, idx, dE_ddiff)
-            ads_forces = i_forces
+            ads_idx_pairs = data['ads_idx_pairs_new']
+            # _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True) 
+            # i_forces = torch.zeros_like(data['ads_coords']).index_add(0, idx, dE_ddiff)
+            i_forces = torch.zeros_like(data['ads_coords']).index_add(0, ads_idx_pairs[:, 0], dE_ddiff)
+            j_forces = torch.zeros_like(data['ads_coords']).index_add(0, ads_idx_pairs[:, 1], -dE_ddiff)
+            ads_forces = i_forces + j_forces
             data['ads_forces'] = ads_forces
 
         return data

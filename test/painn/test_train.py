@@ -320,6 +320,7 @@ def main():
                 k: v.to(device=device, non_blocking=True)
                 for (k, v) in batch_host.items()
             }
+            
             # Reset gradient
             optimizer.zero_grad()
 

@@ -200,7 +200,7 @@ class PainnModel(nn.Module):
         num_atoms = input_dict['num_atoms']
         ads_num_pairs = input_dict['ads_num_pairs']
         # ads_atomic_num = input_dict['ads_atomic_num']
-        ads_coords = input_dict['ads_coords']
+        # ads_coords = input_dict['ads_coords']
         coords = input_dict['coords']
         ads_num_atoms = input_dict['ads_num_atoms']
 
@@ -216,23 +216,31 @@ class PainnModel(nn.Module):
         ads_idx_offset = torch.repeat_interleave(ads_idx_offset, ads_num_pairs)
         ads_idx_pairs = ads_idx_pairs + ads_idx_offset.unsqueeze(-1)
         _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True)
-        mapper = []
-        for a, b in zip(ads_idx_pairs[:, 0], idx):
-            if [a, b] not in mapper:
-                mapper.append([a, b])
-        mapper = torch.tensor(mapper)
-        ads_idx_pairs_new = ads_idx_pairs.clone()
-        for i in range(ads_idx_pairs.size(0)):  
-            for j in range(ads_idx_pairs.size(1)):  
-                key = ads_idx_pairs[i, j].item()  # Get the current element
-                value = mapper[mapper[:, 0]==key, 1]
-                if value.numel() > 0:  # If a replacement exists
-                    ads_idx_pairs_new[i, j] = value.item()
-        # ads_idx_pairs = ads_idx_pairs_new
+        
+        # mapper = [] # do not use for loop in CUDA
+        # for a, b in zip(ads_idx_pairs[:, 0], idx):
+        #     if [a, b] not in mapper:
+        #         mapper.append([a, b])
+        # mapper = torch.tensor(mapper)
+        # ads_idx_pairs_new = ads_idx_pairs.clone()
+        # for i in range(ads_idx_pairs.size(0)):  
+        #     for j in range(ads_idx_pairs.size(1)):  
+        #         key = ads_idx_pairs[i, j].item()  # Get the current element
+        #         value = mapper[mapper[:, 0]==key, 1]
+        #         if value.numel() > 0:  # If a replacement exists
+        #             ads_idx_pairs_new[i, j] = value.item()
+
+        mapper = torch.stack((ads_idx_pairs[:, 0], idx), dim=1)
+        mapper = torch.unique_consecutive(mapper, dim=0)
+        max_key = ads_idx_pairs.max().item()  
+        mapper_dict = torch.full((max_key + 1,), -1, device=ads_idx_pairs.device, dtype=ads_idx_pairs.dtype)
+        mapper_dict[mapper[:, 0]] = mapper[:, 1] 
+        ads_idx_pairs_new = mapper_dict[ads_idx_pairs]
+
            
         ads_edge_diff = input_dict['ads_edge_diff']
-        if self.compute_forces:
-            ads_edge_diff.requires_grad_()
+        # if self.compute_forces:
+        #     ads_edge_diff.requires_grad_()
         edge_dist = torch.linalg.norm(ads_edge_diff, dim=1)
         
         # node_scalar = self.atom_embedding(ads_atomic_num)

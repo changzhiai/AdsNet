@@ -14,7 +14,7 @@ def generate_csv(name, save):
         i = 0
         for line in lines:
             i += 1
-            if 'step=0,' in line:
+            if 'step=' in line:
                 break
         print(i)
         for line in lines[i:]:
@@ -60,6 +60,7 @@ def plot_forces_rmse(df, i, dir, save):
     ax.plot(df['step'], df['forces_rmse'], color=f'C{i}', label=dir)
     ax.set_ylabel('Forces RMSE')
     ax.tick_params(axis="y")
+    plt.ylim([0.05, 0.35])
     if save:
         fig.savefig(f'{path}/{output_dir}/{save}_forces.png')
     # plt.show()
