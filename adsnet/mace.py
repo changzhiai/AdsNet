@@ -481,17 +481,18 @@ class RealAgnosticResidualInteractionBlock(torch.nn.Module):
         node_feat = self.linear_1(node_feat)
         tp_weights = self.conv_tp_weights(edge_dist_embedding)
 
-        _, idx = torch.unique_consecutive(edge_idx[:, 0], return_inverse=True)
+        # _, idx = torch.unique_consecutive(edge_idx[:, 0], return_inverse=True)
         
         edge_feat = self.conv_tp(
-            node_feat[idx],
+            # node_feat[idx],
+            node_feat[edge_idx[:, 0]],
             # self.sc_nbr(ads_nbr_attr, edge_diff_embedding),
             edge_diff_embedding,
             tp_weights,
         )
         node_feat = scatter_add(
-            edge_feat, idx, dim_size=len(node_feat), dim=0
-            # edge_feat, edge_idx[:, 0], dim_size=len(node_feat), dim=0
+            # edge_feat, idx, dim_size=len(node_feat), dim=0
+            edge_feat, edge_idx[:, 0], dim_size=len(node_feat), dim=0
         )
         node_feat = self.linear_2(node_feat)
         node_feat = node_feat / self.avg_num_neighbors
@@ -1052,10 +1053,19 @@ class MACE(nn.Module):
             dim=0
         )
         ads_idx_offset = torch.repeat_interleave(ads_idx_offset, ads_num_pairs)
-        ads_idx_pairs = ads_idx_pairs + ads_idx_offset.unsqueeze(-1)  
+        ads_idx_pairs = ads_idx_pairs + ads_idx_offset.unsqueeze(-1)
+        _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True)
+        mapper = torch.stack((ads_idx_pairs[:, 0], idx), dim=1)
+        mapper = torch.unique_consecutive(mapper, dim=0)
+        max_key = ads_idx_pairs.max().item()  
+        mapper_dict = torch.full((max_key + 1,), -1, device=ads_idx_pairs.device, dtype=ads_idx_pairs.dtype)
+        mapper_dict[mapper[:, 0]] = mapper[:, 1] 
+        ads_idx_pairs_new = mapper_dict[ads_idx_pairs]
+
         data['ads_node_feat'] = data['node_feat'][torch.unique(ads_idx_pairs[:, 0])]
         data['ads_node_attr'] = data['node_attr'][torch.unique(ads_idx_pairs[:, 0])]
-        data['ads_idx_pairs_batch'] = ads_idx_pairs
+        data['ads_idx_pairs_new'] = ads_idx_pairs_new
+
         node_feat = data['ads_node_feat']
         data['ads_nbr_attr'] =  data['node_attr'][ads_idx_pairs[:, 1]]
         for interaction, product, readout in zip(
@@ -1064,7 +1074,7 @@ class MACE(nn.Module):
             node_feat, sc = interaction(
                 node_feat, 
                 data['ads_node_attr'],
-                data['ads_idx_pairs_batch'], 
+                data['ads_idx_pairs_new'], 
                 data['ads_edge_dist_embedding'],
                 data['ads_edge_diff_embedding'],
                 data['ads_nbr_attr'], # add node attr
@@ -1088,9 +1098,11 @@ class MACE(nn.Module):
                 retain_graph=True,
                 create_graph=True,
             )[0]
-            _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True) 
-            i_forces = torch.zeros_like(data['ads_coords']).index_add(0, idx, dE_ddiff)
-            ads_forces = i_forces
+            # _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True)
+            # ads_idx_pairs = data['ads_idx_pairs_new']
+            i_forces = torch.zeros_like(data['ads_coords']).index_add(0, ads_idx_pairs_new[:, 0], dE_ddiff)
+            j_forces = torch.zeros_like(data['ads_coords']).index_add(0, ads_idx_pairs_new[:, 1], -dE_ddiff)
+            ads_forces = i_forces + j_forces
             data['ads_forces'] = ads_forces
 
         return data
