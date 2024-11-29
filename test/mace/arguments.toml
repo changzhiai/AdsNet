@@ -1,6 +1,6 @@
 node_size = 64
 num_interactions = 2
-cutoff = 4.0
+cutoff = 5.5
 val_ratio = 0.1
 output_dir = "model_output"
 dataset = "Pt_ads.traj"

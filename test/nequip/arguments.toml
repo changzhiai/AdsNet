@@ -1,9 +1,9 @@
 node_size = 128
 num_interactions = 3
-cutoff = 4.0
+cutoff = 5.5
 val_ratio = 0.1
 output_dir = "model_output"
-dataset = "Pt_ads.traj"
+dataset = "Pt_ads_forces.traj"
 max_steps = 1000000
 device = "cpu"
 batch_size = 12
