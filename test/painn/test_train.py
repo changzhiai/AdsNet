@@ -113,7 +113,7 @@ def eval_model(model, dataloader, device, forces_weight):
         device_batch = {
             k: v.to(device=device, non_blocking=True) for k, v in batch.items()
         }
-        out = model(device_batch)
+        out = model(device_batch.copy())
 
         count += batch["ads_energy"].shape[0]
         energy_loss = criterion(out["ads_energy"], device_batch["ads_energy"]).item() 
@@ -326,7 +326,7 @@ def main():
 
             # Forward, backward and optimize
             outputs = net(
-                batch
+                batch.copy()
             )
             energy_loss = criterion(outputs["ads_energy"], batch["ads_energy"])
             if args.forces_weight:
@@ -391,6 +391,7 @@ def main():
                         os.path.join(args.output_dir, "best_model.pth"),
                     )
                 else:
+                    logging.info("Early stop reached, exiting")
                     sys.exit(0)
 
             step += 1

@@ -74,4 +74,4 @@ if __name__ == '__main__':
     df = pd.read_csv(f'{path}/{output_dir}/{save}.csv', skiprows=[])
     print(df)
     plot_energy_rmse(df, 1, 'Binding energy learning curve', save)
-    # plot_forces_rmse(df, 1, 'Adsorbate forces learning curve', save)
+    plot_forces_rmse(df, 1, 'Adsorbate forces learning curve', save)
