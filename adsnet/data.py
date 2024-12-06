@@ -42,7 +42,7 @@ class AseData(torch.utils.data.Dataset):
             print(f'Atoms info error: {e}. Please add ads. data into atoms.info!')
         # print(ads_data, )
         atoms_data.update(ads_data)
-        atoms_data['ads_energy'] = torch.tensor(ads_data['ads_energy'], dtype=torch.float)
+        
         atoms_data['ads_idx'] = torch.tensor(ads_data['ads_idx'])
         
         if atoms.pbc.any():
@@ -68,6 +68,7 @@ class AseData(torch.utils.data.Dataset):
         atoms_data['ads_coords'] = torch.tensor(atoms.positions[ads_indices], dtype=torch.float)
         
         try:
+            atoms_data['ads_energy'] = torch.tensor(ads_data['ads_energy'], dtype=torch.float)
             # atoms_data['ads_forces'] = torch.tensor(atoms.get_forces()[ads_data['ads_idx']])
             atoms_data['delta_forces'] = torch.tensor(ads_data['delta_forces'])
             atoms_data['ads_forces'] = atoms_data['delta_forces'][ads_indices]
@@ -85,14 +86,13 @@ class AseData(torch.utils.data.Dataset):
         for i in ads_idx:
             indices, diff, _ = nl.get_neighbors(i)
             pair_i_idx += [i] * len(indices)  # local index of pair i
-            pair_j_idx.append(indices)   # local index of pair j
-            ads_edge_diff.append(diff)
+            pair_j_idx += list(indices)   # local index of pair j
+            ads_edge_diff += list(diff)
         nbr_i_idx, nbr_j_idx, nbr_edge_diff = [], [], []
-        pair_j_idx, pair_i_idx, ads_edge_diff = pair_j_idx[0].tolist(), pair_i_idx, ads_edge_diff[0].tolist()
         for j_idx, i_idx, edge_d in sorted(zip(pair_j_idx, pair_i_idx, ads_edge_diff)):
             nbr_i_idx.append(j_idx)
             nbr_j_idx.append(i_idx)
-            nbr_edge_diff.append(edge_d)
+            nbr_edge_diff.append(-edge_d)
 
         pair_i_idx += nbr_i_idx
         pair_j_idx += nbr_j_idx
@@ -102,6 +102,46 @@ class AseData(torch.utils.data.Dataset):
         ads_edge_diff = np.array(ads_edge_diff)
         
         return ads_idx_pairs, ads_edge_diff
+    
+    def _get_neighborlist_simple(self, atoms):
+        from scipy.spatial.distance import cdist
+        import copy
+        pair_i_idx = []
+        pair_j_idx = []
+        ads_edge_diff = []
+        ads_idx = atoms.info['data']['ads_idx']
+        indices = [atom.index for atom in atoms]
+        pos = atoms.get_positions()
+        for i in ads_idx:
+            ads_coords = atoms.positions[[i]]
+            clst_idx = copy.deepcopy(indices)
+            clst_idx.remove(i)
+            clst_coords = atoms.positions[clst_idx]
+            dists = cdist(ads_coords, clst_coords)
+            mask = dists <= self.cutoff
+            idx_pairs = np.argwhere(mask)
+            i_idx = np.array([i])[idx_pairs[:, 0]]
+            j_idx = np.array(clst_idx)[idx_pairs[:, 1]]
+            diff = pos[j_idx] - pos[i_idx]
+            pair_i_idx += list(i_idx)
+            pair_j_idx += list(j_idx)
+            ads_edge_diff += list(diff)
+        
+        nbr_i_idx, nbr_j_idx, nbr_edge_diff = [], [], []
+        for j_idx, i_idx, edge_d in sorted(zip(pair_j_idx, pair_i_idx, ads_edge_diff)):
+            nbr_i_idx.append(j_idx)
+            nbr_j_idx.append(i_idx)
+            nbr_edge_diff.append(-edge_d)
+
+        pair_i_idx += nbr_i_idx
+        pair_j_idx += nbr_j_idx
+        ads_edge_diff += nbr_edge_diff
+
+        ads_idx_pairs = np.column_stack((pair_i_idx, pair_j_idx))
+        ads_edge_diff = np.array(ads_edge_diff)
+            
+        return ads_idx_pairs, ads_edge_diff
+    
 
     # def _get_neighborlist(self, atoms):        
     #     nl = asap3.FullNeighborList(self.cutoff, atoms)
@@ -121,15 +161,15 @@ class AseData(torch.utils.data.Dataset):
         
     #     return ads_idx_pairs, ads_edge_diff
 
-    def _get_neighborlist_simple(self, atoms):
-        pos = atoms.get_positions()
-        dist_mat = distance_matrix(pos, pos)
-        mask = dist_mat < self.cutoff
-        np.fill_diagonal(mask, False)        
-        ads_idx_pairs = np.argwhere(mask)
-        ads_edge_diff = pos[ads_idx_pairs[:, 1]] - pos[ads_idx_pairs[:, 0]]
+    # def _get_neighborlist_simple(self, atoms):
+    #     pos = atoms.get_positions()
+    #     dist_mat = distance_matrix(pos, pos)
+    #     mask = dist_mat < self.cutoff
+    #     np.fill_diagonal(mask, False)        
+    #     ads_idx_pairs = np.argwhere(mask)
+    #     ads_edge_diff = pos[ads_idx_pairs[:, 1]] - pos[ads_idx_pairs[:, 0]]
         
-        return ads_idx_pairs, ads_edge_diff
+    #     return ads_idx_pairs, ads_edge_diff
     
 
 def cat_tensors(tensors: List[torch.Tensor]):
