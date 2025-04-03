@@ -65,6 +65,7 @@ class AseData(torch.utils.data.Dataset):
         atoms_data['ads_atomic_num'] = torch.tensor([atoms.numbers[atoms_data['ads_idx']]]) # not necessary
         # atoms_data['ads_coords'] = torch.tensor([atoms.positions[atoms_data['ads_idx']]], dtype=torch.float)
         # atoms_data['ads_coords'] = torch.tensor(atoms.positions[np.unique(ads_idx_pairs[:, 0])], dtype=torch.float)
+        # print(ads_indices)
         atoms_data['ads_coords'] = torch.tensor(atoms.positions[ads_indices], dtype=torch.float)
         
         try:
