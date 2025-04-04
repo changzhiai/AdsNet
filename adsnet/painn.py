@@ -197,6 +197,7 @@ class PainnModel(nn.Module):
         )
         
     def forward(self, input_dict):
+        # torch.use_deterministic_algorithms(True)
         num_atoms = input_dict['num_atoms']
         ads_num_pairs = input_dict['ads_num_pairs']
         # ads_atomic_num = input_dict['ads_atomic_num']
@@ -245,7 +246,8 @@ class PainnModel(nn.Module):
         
         # node_scalar = self.atom_embedding(ads_atomic_num)
         all_scalar = self.atom_embedding(input_dict['elems'])
-        node_scalar = all_scalar[torch.unique(ads_idx_pairs[:, 0])]
+        local_idx = torch.unique_consecutive(ads_idx_pairs[:, 0])
+        node_scalar = all_scalar[local_idx]
         # node_scalar = all_scalar[ads_idx_pairs[:, 0]]
         # node_vector = torch.zeros((ads_coords.shape[0], 3, self.hidden_state_size),
         #                           device=ads_coords.device,
@@ -255,7 +257,7 @@ class PainnModel(nn.Module):
                                   device=coords.device,
                                   dtype=coords.dtype,
                                  )
-        node_vector = all_vector[torch.unique(ads_idx_pairs[:, 0])]
+        node_vector = all_vector[local_idx]
         # node_vector = all_vector[ads_idx_pairs[:, 0]]
         # node_vector = all_vector[ads_idx_pairs[:, 1]]
         
@@ -281,7 +283,8 @@ class PainnModel(nn.Module):
         ads_energy.index_add_(0, image_idx, node_scalar)
         result_dict = {}
         result_dict['ads_energy'] = ads_energy
-
+        result_dict['local_idx'] = local_idx
+        result_dict['local_energies'] = node_scalar
         # node_vector = self.readout_forces(node_vector)
         # node_vector.squeeze_()
         # ads_forces = torch.zeros_like(ads_coords).float()
