@@ -57,14 +57,16 @@ class MLCalculator(Calculator):
             model_results["ads_energy"][0].detach().cpu().numpy().item()
             * self.energy_scale
         )
-#            results["stress"] = (
-#                model_results["stress"][0].detach().cpu().numpy() * self.stress_scale
-#            )
-#         atoms.info["ll_out"] = {
-#             k: v.detach().cpu().numpy() for k, v in model_results["ll_out"].items()
-#         }
-        # if model_results.get("fps"):
-        #     atoms.info["fps"] = model_results["fps"].detach().cpu().numpy()
+
+        results["ads_forces"] = (
+            model_results["ads_forces"].detach().cpu().numpy() * self.forces_scale
+        )
+        results["local_idx"] = (
+            model_results["local_idx"].detach().cpu().numpy() 
+        )
+        results["local_energies"] = (
+            model_results["local_energies"].detach().cpu().numpy()
+        )
     
         self.results = results
 
