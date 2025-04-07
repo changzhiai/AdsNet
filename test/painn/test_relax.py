@@ -166,16 +166,21 @@ def main(read_csv=False):
     dft_energies = []
     nnp_energies = []
     E_per_atoms = args.E_per_atoms
-    for atoms in images:
+    for i, atoms in enumerate(images):
         import copy
         from ase.visualize import view
+        if i != 120:
+            continue
+        # ads_idx = atoms.info['data']['ads_idx']
+        # if len(ads_idx) == 1:
+        #     atoms[ads_idx[0]].z += 0.2
         traj = []
         def compute_properties(ads_pos):
             # atoms[atoms.info['data']['ads_idx'][0]].position = ads_pos
             atoms_temp = copy.deepcopy(atoms)
             ads_idx = atoms.info['data']['ads_idx']
             if len(ads_idx) == 1:
-                atoms[ads_idx[0]].position = ads_pos
+                atoms_temp[ads_idx[0]].position = ads_pos
 
             atoms_temp.calc = copy.deepcopy(calc)
             binding_energy = atoms_temp.get_potential_energy()
@@ -184,22 +189,18 @@ def main(read_csv=False):
             local_energies = atoms_temp.calc.results['local_energies']
             ads_idx_in_local = list(local_idx).index(ads_idx)
             ads_force = ads_forces[ads_idx_in_local]
-            return binding_energy, ads_force, local_idx, local_energies
+            return binding_energy, ads_force, local_idx, local_energies, atoms_temp
 
         def objective(ads_pos):
-            binding_energy, _, _, _ = compute_properties(ads_pos)
+            binding_energy, _, _, _, atoms_new = compute_properties(ads_pos)
             ads_idx = atoms.info['data']['ads_idx']
             print(f"Objective function evaluated at ads_pos: {ads_pos}, ads_idx: {ads_idx}")
-            atoms_new = copy.deepcopy(atoms)
-            if len(ads_idx) == 1:
-                atoms[ads_idx[0]].position = ads_pos
-            # atoms_new[ads_idx].positions = ads_pos.reshape(-1, 3)
             print(atoms_new[ads_idx].positions)
             traj.append(atoms_new)
             return binding_energy
         
         def gradient(ads_pos):
-            _, ads_forces, _, _ = compute_properties(ads_pos)
+            _, ads_forces, _, _, _ = compute_properties(ads_pos)
             return np.ascontiguousarray(ads_forces, dtype=np.float64).ravel()
         
 
@@ -212,13 +213,14 @@ def main(read_csv=False):
         result = minimize(
             objective, ads_pos.copy(), 
             jac=gradient, 
+            # method='BFGS', 
             method='L-BFGS-B', 
             # method='TNC',
             tol=1e-3, 
             )
         print(result)
         view(traj)
-        break
+        # break
 
     #     if E_per_atoms:
     #         E_dft = E_dft/len(atoms.info['ads_idx'])
