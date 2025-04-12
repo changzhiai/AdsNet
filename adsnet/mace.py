@@ -1062,8 +1062,9 @@ class MACE(nn.Module):
         mapper_dict[mapper[:, 0]] = mapper[:, 1] 
         ads_idx_pairs_new = mapper_dict[ads_idx_pairs]
 
-        data['ads_node_feat'] = data['node_feat'][torch.unique(ads_idx_pairs[:, 0])]
-        data['ads_node_attr'] = data['node_attr'][torch.unique(ads_idx_pairs[:, 0])]
+        local_idx = torch.unique_consecutive(ads_idx_pairs[:, 0])
+        data['ads_node_feat'] = data['node_feat'][local_idx]
+        data['ads_node_attr'] = data['node_attr'][local_idx]
         data['ads_idx_pairs_new'] = ads_idx_pairs_new
 
         node_feat = data['ads_node_feat']
@@ -1104,6 +1105,10 @@ class MACE(nn.Module):
             j_forces = torch.zeros_like(data['ads_coords']).index_add(0, ads_idx_pairs_new[:, 1], -dE_ddiff)
             ads_forces = i_forces + j_forces
             data['ads_forces'] = ads_forces
+            
+
+            data['local_idx'] = local_idx
+            data['local_energies'] = node_es
 
         return data
     
