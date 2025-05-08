@@ -11,6 +11,8 @@ from ase.db import connect
 import numpy as np
 import pandas as pd
 import os
+import copy
+from ase.visualize import view
 
 path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 
@@ -121,7 +123,7 @@ def get_init_bad_structs(args):
     write('images_bad.traj', images_bad)
     return df
 
-def main(read_csv=False):
+def relax(read_csv=False):
     args = get_arguments()
     if args.cfg:
         with open(args.cfg, 'r') as f:
@@ -161,32 +163,32 @@ def main(read_csv=False):
     calc = MLCalculator(model)
 
     images = read(f'{path}/{args.dataset}', ':')
+    # view(images)
     count = 0
     formulas = []
     dft_energies = []
     nnp_energies = []
     E_per_atoms = args.E_per_atoms
     for i, atoms in enumerate(images):
-        import copy
-        from ase.visualize import view
+        
         if i != 100:
             continue
+        # view(atoms)
+        
         ads_idx = atoms.info['data']['ads_idx']
         # if len(ads_idx) == 1:
         #     atoms[ads_idx[0]].z += 0.2
-        atoms[ads_idx[0]].z += 0.15
+        atoms[ads_idx[0]].z += 0.5
         traj = []
 
         atoms_init = copy.deepcopy(atoms)
         atoms_init.calc = copy.deepcopy(calc)
         _ = atoms_init.get_potential_energy()
-        # ads_forces = atoms_init.calc.results['ads_forces']
         local_idx = atoms_init.calc.results['local_idx']
-        # local_energies = atoms_init.calc.results['local_energies']
         ads_pos = atoms_init[local_idx].positions.flatten()
         print(f"ads_pos shape: {ads_pos.shape}, dtype: {ads_pos.dtype}")
         print(f'ads_pos: {ads_pos}')
-
+        
         def compute_properties(ads_pos):
             atoms_temp = copy.deepcopy(atoms)
             for id, pos in enumerate(ads_pos.reshape(-1, 3)):
@@ -195,59 +197,37 @@ def main(read_csv=False):
             atoms_temp.calc = copy.deepcopy(calc)
             binding_energy = atoms_temp.get_potential_energy()
             ads_forces = atoms_temp.calc.results['ads_forces']
-            # local_idx = atoms_temp.calc.results['local_idx']
             local_energies = atoms_temp.calc.results['local_energies']
-            # ads_idx_in_local = list(local_idx).index(ads_idx)
-            # ads_force = ads_forces[ads_idx_in_local]
             return binding_energy, ads_forces, local_idx, local_energies, atoms_temp
 
         def objective(ads_pos):
+            print(f'ads_pos: {ads_pos}')
             binding_energy, _, _, _, atoms_new = compute_properties(ads_pos)
-            print(f'ads_pos: {(atoms_new[local_idx].positions).tolist()}')
+            print(f'binding energy: {binding_energy}, ads_pos: {(atoms_new[local_idx].positions).tolist()}')
             traj.append(atoms_new)
             return binding_energy
         
         def gradient(ads_pos):
             _, ads_forces, _, _, _ = compute_properties(ads_pos)
-            return np.ascontiguousarray(ads_forces, dtype=np.float64).ravel()
+            return -np.ascontiguousarray(ads_forces, dtype=np.float64).ravel()
 
+        max_step = 0.2
+        bounds = [(x - max_step, x + max_step) for x in ads_pos]
         from scipy.optimize import minimize
         result = minimize(
             objective, ads_pos.copy(), 
             jac=gradient, 
-            # method='BFGS', 
+            # method='BFGS',
             method='L-BFGS-B', 
             # method='TNC',
-            tol=1e-3, 
+            # method='Nelder-Mead',
+            tol=1e-4,
+            bounds=bounds,
             )
         print(result)
         view(traj)
         # break
 
-    #     if E_per_atoms:
-    #         E_dft = E_dft/len(atoms.info['ads_idx'])
-    #     dft_energies.append(E_dft)
-    # for atoms in images:
-    #     formula = atoms.get_chemical_formula(mode='hill')
-    #     formulas.append(formula)
-    #     atoms.calc = calc
-    #     logger.info('finishing: {}'.format(count))
-    #     E_nnp = atoms.get_potential_energy()
-    #     if E_per_atoms:
-    #         E_nnp = E_nnp/len(atoms.info['ads_idx'])
-    #     nnp_energies.append(E_nnp)
-    #     count += 1
-    # tuples = {
-    #         'formula': formulas,
-    #         'dft_energies': dft_energies,
-    #         'nnp_energies':nnp_energies,
-    #         }
-    # df = pd.DataFrame(tuples)
-    # df.to_csv(f'{path}/{args.output_dir}/{args.save_csv}')
-    # return df['dft_energies'], df['nnp_energies'], args.fig_name, args.output_dir
-
 if __name__ == "__main__":
-    main(read_csv=False)
-    # dft_energies, nnp_energies, fig_name, output_dir = main(read_csv=False)
-    # plot_fitting(dft_energies, nnp_energies, fig_name=fig_name, output_dir=output_dir)
-    print('Predict done!')
+    relax(read_csv=False)
+

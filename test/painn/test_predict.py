@@ -162,6 +162,7 @@ def main(read_csv=False):
     calc = MLCalculator(model)
 
     images = read(f'{path}/{args.dataset}', ':')
+    print(f'{path}/{args.dataset}', len(images))
     count = 0
     formulas = []
     dft_energies = []

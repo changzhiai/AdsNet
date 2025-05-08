@@ -253,11 +253,13 @@ def main():
         args.batch_size,
         sampler=torch.utils.data.RandomSampler(datasplits["train"]),
         collate_fn=collate_atomsdata,
+        drop_last=True,
     )
     val_loader = torch.utils.data.DataLoader(
         datasplits["validation"], 
         args.batch_size, 
         collate_fn=collate_atomsdata,
+        drop_last=True,
     )
     
     logging.info('Dataset size: {}, training set size: {}, validation set size: {}'.format(
@@ -291,7 +293,8 @@ def main():
     logging.info(f"Model size in memory: {total_memory / 1024**2:.2f} MB")
 
     optimizer = torch.optim.Adam(net.parameters(), lr=args.initial_lr)
-    criterion = torch.nn.MSELoss()
+    # criterion = torch.nn.MSELoss()
+    criterion = torch.nn.HuberLoss(delta=1.0) 
     if args.plateau_scheduler:
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=10)
     else:
