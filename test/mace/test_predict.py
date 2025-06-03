@@ -165,7 +165,9 @@ def main(read_csv=False):
     model.load_state_dict(state_dict["model"])
     calc = MLCalculator(model, compute_forces=bool(args.forces_weight))
 
-    images = read(f'{path}/{args.dataset}', ':')
+    # images = read(f'{path}/{args.dataset}', ':')
+    images = read('/Users/changzhi/Library/CloudStorage/OneDrive-SLACNationalAcceleratorLaboratory/SLAC/AdsNet/test/painn/Pt_ads.traj', ':')
+    print(f'{path}/{args.dataset}', len(images))
     count = 0
     formulas = []
     dft_energies = []
