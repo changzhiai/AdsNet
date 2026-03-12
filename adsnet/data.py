@@ -10,7 +10,7 @@ from scipy.spatial import distance_matrix
 
 class AseData(torch.utils.data.Dataset):
     def __init__(self, ase_data=None, cutoff=5.0, compute_forces=False, **kwargs):
-        super().__init__(**kwargs)
+        # super().__init__(**kwargs)
         
         # To do: Add atoms.info filter (required included data)
         if ase_data == None:

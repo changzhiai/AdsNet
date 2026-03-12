@@ -7,3 +7,4 @@ test/nequip/*.png
 test/nequip/*.csv
 .DS_Store
 run.toml
+*.pyc
