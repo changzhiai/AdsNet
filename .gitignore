@@ -1,5 +1,9 @@
-test/mace/model_output*/best_model.pth
+test/mace/model_output*
 test/mace/Pt_ads.traj
-test/equip/model_output*/best_model.pth
-test/equip/Pt_ads.traj
-test/painn/model_output*/best_model.pth
+test/nequip/model_output*
+test/nequip/Pt_ads.traj
+test/painn/model_output*
+test/nequip/*.png
+test/nequip/*.csv
+.DS_Store
+run.toml
