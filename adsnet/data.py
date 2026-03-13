@@ -43,7 +43,7 @@ class AseData(torch.utils.data.Dataset):
         # print(ads_data, )
         atoms_data.update(ads_data)
         
-        atoms_data['ads_idx'] = torch.tensor(ads_data['ads_idx'])
+        atoms_data['ads_idx'] = torch.tensor(ads_data['ads_idx'], dtype=torch.int)
         
         if atoms.pbc.any():
             ads_idx_pairs, ads_edge_diff = self._get_neighborlist(atoms)
@@ -62,7 +62,7 @@ class AseData(torch.utils.data.Dataset):
         # atoms_data['ads_num_atoms'] = torch.tensor([len(ads_indices)])
         atoms_data['ads_num_atoms'] = torch.tensor([len(np.unique(ads_idx_pairs[:, 0]))])
         # atoms_data['ads_num_atoms'] = torch.tensor([len(ads_idx_pairs[:, 0])])
-        atoms_data['ads_atomic_num'] = torch.tensor([atoms.numbers[atoms_data['ads_idx']]]) # not necessary
+        atoms_data['ads_atomic_num'] = atoms_data['elems'][atoms_data['ads_idx']] # not necessary
         # atoms_data['ads_coords'] = torch.tensor([atoms.positions[atoms_data['ads_idx']]], dtype=torch.float)
         # atoms_data['ads_coords'] = torch.tensor(atoms.positions[np.unique(ads_idx_pairs[:, 0])], dtype=torch.float)
         # print(ads_indices)
@@ -99,8 +99,12 @@ class AseData(torch.utils.data.Dataset):
         pair_j_idx += nbr_j_idx
         ads_edge_diff += nbr_edge_diff
 
-        ads_idx_pairs = np.column_stack((pair_i_idx, pair_j_idx))
+        ads_idx_pairs = np.column_stack((pair_i_idx, pair_j_idx)).astype(int)
         ads_edge_diff = np.array(ads_edge_diff)
+        
+        sort_idx = np.argsort(ads_idx_pairs[:, 0])
+        ads_idx_pairs = ads_idx_pairs[sort_idx]
+        ads_edge_diff = ads_edge_diff[sort_idx]
         
         return ads_idx_pairs, ads_edge_diff
     
@@ -138,9 +142,13 @@ class AseData(torch.utils.data.Dataset):
         pair_j_idx += nbr_j_idx
         ads_edge_diff += nbr_edge_diff
 
-        ads_idx_pairs = np.column_stack((pair_i_idx, pair_j_idx))
+        ads_idx_pairs = np.column_stack((pair_i_idx, pair_j_idx)).astype(int)
         ads_edge_diff = np.array(ads_edge_diff)
             
+        sort_idx = np.argsort(ads_idx_pairs[:, 0])
+        ads_idx_pairs = ads_idx_pairs[sort_idx]
+        ads_edge_diff = ads_edge_diff[sort_idx]
+        
         return ads_idx_pairs, ads_edge_diff
     
 
@@ -187,5 +195,13 @@ def collate_atomsdata(atoms_data: List[dict], pin_memory=True):
     else:
         pin = lambda x: x
         
-    collated = {k: cat_tensors(v) for k, v in dict_of_lists.items()}
+    collated = {}
+    for k, v in dict_of_lists.items():
+        try:
+            collated[k] = cat_tensors(v)
+        except Exception as e:
+            print(f"Error collating key {k}: {e}")
+            for t in v:
+                print(f"Shape: {t.shape}")
+            raise e
     return collated
