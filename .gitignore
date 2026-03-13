@@ -8,3 +8,5 @@ test/nequip/*.csv
 .DS_Store
 run.toml
 *.pyc
+proj
+metals_with_adss.traj
