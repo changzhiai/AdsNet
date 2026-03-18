@@ -233,10 +233,13 @@ class PainnModel(nn.Module):
 
         mapper = torch.stack((ads_idx_pairs[:, 0], idx), dim=1)
         mapper = torch.unique_consecutive(mapper, dim=0)
-        max_key = ads_idx_pairs.max().item()  
-        mapper_dict = torch.full((max_key + 1,), -1, device=ads_idx_pairs.device, dtype=ads_idx_pairs.dtype)
-        mapper_dict[mapper[:, 0]] = mapper[:, 1] 
-        ads_idx_pairs_new = mapper_dict[ads_idx_pairs]
+        if ads_idx_pairs.numel() > 0:
+            max_key = int(ads_idx_pairs.max().item())
+            mapper_dict = torch.full((max_key + 1,), -1, device=ads_idx_pairs.device, dtype=ads_idx_pairs.dtype)
+            mapper_dict[mapper[:, 0]] = mapper[:, 1] 
+            ads_idx_pairs_new = mapper_dict[ads_idx_pairs]
+        else:
+            raise ValueError('No ads_idx_pairs found!')
 
            
         ads_edge_diff = input_dict['ads_edge_diff']

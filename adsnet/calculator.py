@@ -58,9 +58,11 @@ class MLCalculator(Calculator):
             * self.energy_scale
         )
 
-        results["ads_forces"] = (
-            model_results["ads_forces"].detach().cpu().numpy() * self.forces_scale
-        )
+        if self.compute_forces:
+            results["ads_forces"] = (
+                model_results["ads_forces"].detach().cpu().numpy() * self.forces_scale
+            )
+            
         results["local_idx"] = (
             model_results["local_idx"].detach().cpu().numpy() 
         )
