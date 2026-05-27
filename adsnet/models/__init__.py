@@ -1,3 +1,3 @@
-from adsnet.models.adsnet import AdsNet, Interaction
+from adsnet.models.adsnet import AdsNet, Interaction, GaussianRBF, EdgeEmbedding
 
-__all__ = ["AdsNet", "Interaction"]
+__all__ = ["AdsNet", "Interaction", "GaussianRBF", "EdgeEmbedding"]

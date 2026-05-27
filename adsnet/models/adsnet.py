@@ -2,14 +2,6 @@ import torch
 from torch import nn
 
 
-def sinc_expansion(edge_dist: torch.Tensor, edge_size: int, cutoff: float):
-    """
-    Sinc radial basis function: sin(n*pi*d/d_cut) / d
-    """
-    n = torch.arange(edge_size, device=edge_dist.device) + 1
-    return torch.sin(edge_dist.unsqueeze(-1) * n * torch.pi / cutoff) / edge_dist.unsqueeze(-1)
-
-
 def cosine_cutoff(edge_dist: torch.Tensor, cutoff: float):
     """
     Cosine Behler-Parinello cutoff: f(d) = 0.5*(cos(pi*d/d_cut)+1) for d < d_cut, else 0
@@ -21,13 +13,39 @@ def cosine_cutoff(edge_dist: torch.Tensor, cutoff: float):
     )
 
 
+class GaussianRBF(nn.Module):
+    """Learnable Gaussian radial basis functions."""
+    def __init__(self, num_rbf: int, cutoff: float):
+        super().__init__()
+        centers = torch.linspace(0.0, cutoff, num_rbf)
+        self.register_buffer('initial_centers', centers.clone())
+        self.centers = nn.Parameter(centers)
+        self.widths = nn.Parameter(torch.full((num_rbf,), 10.0 / (cutoff / num_rbf) ** 2))
+
+    def forward(self, edge_dist: torch.Tensor):
+        return torch.exp(-self.widths * (edge_dist.unsqueeze(-1) - self.centers) ** 2)
+
+
+class EdgeEmbedding(nn.Module):
+    """Two-layer MLP to embed radial basis into filter space."""
+    def __init__(self, edge_size: int, output_size: int):
+        super().__init__()
+        self.mlp = nn.Sequential(
+            nn.Linear(edge_size, output_size),
+            nn.SiLU(),
+            nn.Linear(output_size, output_size),
+        )
+
+    def forward(self, rbf):
+        return self.mlp(rbf)
+
+
 class Interaction(nn.Module):
-    """Interaction block: message passing + node update."""
+    """Interaction block: message passing + node update with layer norm."""
     def __init__(self, node_size: int, edge_size: int, cutoff: float):
         super().__init__()
 
         self.node_size = node_size
-        self.edge_size = edge_size
         self.cutoff = cutoff
 
         # Message
@@ -36,7 +54,7 @@ class Interaction(nn.Module):
             nn.SiLU(),
             nn.Linear(node_size, node_size * 3),
         )
-        self.filter_layer = nn.Linear(edge_size, node_size * 3)
+        self.edge_embedding = EdgeEmbedding(edge_size, node_size * 3)
 
         # Update
         self.update_U = nn.Linear(node_size, node_size)
@@ -47,9 +65,13 @@ class Interaction(nn.Module):
             nn.Linear(node_size, node_size * 3),
         )
 
-    def forward(self, node_scalar, node_vector, ads_idx_pairs, ads_edge_diff, edge_dist):
+        # Layer normalization
+        self.layer_norm_scalar = nn.LayerNorm(node_size)
+        self.layer_norm_gate = nn.LayerNorm(node_size)
+
+    def forward(self, node_scalar, node_vector, ads_idx_pairs, ads_edge_diff, edge_dist, rbf):
         # --- Message ---
-        filter_weight = self.filter_layer(sinc_expansion(edge_dist, self.edge_size, self.cutoff))
+        filter_weight = self.edge_embedding(rbf)
         filter_weight = filter_weight * cosine_cutoff(edge_dist, self.cutoff).unsqueeze(-1)
         scalar_out = self.scalar_message_mlp(node_scalar)
 
@@ -68,7 +90,7 @@ class Interaction(nn.Module):
         residual_scalar.index_add_(0, ads_idx_pairs[:, 0], message_scalar)
         residual_vector.index_add_(0, ads_idx_pairs[:, 0], message_vector)
 
-        node_scalar = node_scalar + residual_scalar
+        node_scalar = self.layer_norm_scalar(node_scalar + residual_scalar)
         node_vector = node_vector + residual_vector
 
         # --- Update ---
@@ -87,7 +109,7 @@ class Interaction(nn.Module):
         inner_prod = torch.sum(Uv * Vv, dim=1)
         delta_s = a_sv * inner_prod + a_ss
 
-        return node_scalar + delta_s, node_vector + delta_v
+        return self.layer_norm_gate(node_scalar + delta_s), node_vector + delta_v
 
 
 class AdsNet(nn.Module):
@@ -111,9 +133,10 @@ class AdsNet(nn.Module):
         self.compute_forces = compute_forces
 
         self.atom_embedding = nn.Embedding(num_embedding, hidden_state_size)
-
-        # Project embedding into interaction space
         self.node_projection = nn.Linear(hidden_state_size, hidden_state_size)
+
+        # Learnable radial basis
+        self.rbf = GaussianRBF(edge_embedding_size, cutoff)
 
         self.interactions = nn.ModuleList(
             [
@@ -122,8 +145,10 @@ class AdsNet(nn.Module):
             ]
         )
 
+        # Gated equivariant readout: use vector channel to gate scalar
+        self.readout_vector_proj = nn.Linear(hidden_state_size, hidden_state_size)
         self.readout_mlp = nn.Sequential(
-            nn.Linear(hidden_state_size, hidden_state_size),
+            nn.Linear(hidden_state_size * 2, hidden_state_size),
             nn.SiLU(),
             nn.Linear(hidden_state_size, 1),
         )
@@ -136,7 +161,6 @@ class AdsNet(nn.Module):
                 nn.init.xavier_uniform_(m.weight)
                 if m.bias is not None:
                     nn.init.zeros_(m.bias)
-        # Embedding: small normal init
         nn.init.normal_(self.atom_embedding.weight, mean=0.0, std=0.05)
 
     def _build_graph(self, input_dict):
@@ -153,7 +177,6 @@ class AdsNet(nn.Module):
         ads_idx_pairs = ads_idx_pairs + ads_idx_offset.unsqueeze(-1)
         _, idx = torch.unique_consecutive(ads_idx_pairs[:, 0], return_inverse=True)
 
-        # Vectorized compact index mapper (CUDA-safe)
         mapper = torch.stack((ads_idx_pairs[:, 0], idx), dim=1)
         mapper = torch.unique_consecutive(mapper, dim=0)
         if ads_idx_pairs.numel() > 0:
@@ -165,7 +188,6 @@ class AdsNet(nn.Module):
             raise ValueError('No ads_idx_pairs found!')
 
         local_idx = torch.unique_consecutive(ads_idx_pairs[:, 0])
-
         return ads_idx_pairs, ads_idx_pairs_compact, local_idx
 
     def forward(self, input_dict):
@@ -178,6 +200,9 @@ class AdsNet(nn.Module):
         ads_edge_diff = input_dict['ads_edge_diff']
         edge_dist = torch.linalg.norm(ads_edge_diff, dim=1)
 
+        # Radial basis
+        rbf = self.rbf(edge_dist)
+
         # Initialize node features
         all_scalar = self.atom_embedding(input_dict['elems'])
         node_scalar = self.node_projection(all_scalar[local_idx])
@@ -187,14 +212,20 @@ class AdsNet(nn.Module):
             device=coords.device, dtype=coords.dtype,
         )
 
-        # Message passing
+        # Message passing with residual connections across interactions
         for interaction in self.interactions:
+            scalar_in = node_scalar
             node_scalar, node_vector = interaction(
-                node_scalar, node_vector, ads_idx_pairs_compact, ads_edge_diff, edge_dist
+                node_scalar, node_vector, ads_idx_pairs_compact, ads_edge_diff, edge_dist, rbf
             )
+            node_scalar = node_scalar + scalar_in
 
-        # Readout: per-atom energies → sum to per-image energy
-        atom_energies = self.readout_mlp(node_scalar).squeeze(-1)
+        # Gated equivariant readout
+        vector_norm = torch.linalg.norm(
+            self.readout_vector_proj(node_vector), dim=1
+        )
+        readout_input = torch.cat((node_scalar, vector_norm), dim=-1)
+        atom_energies = self.readout_mlp(readout_input).squeeze(-1)
 
         if not bool(atom_energies.shape):
             atom_energies = atom_energies.unsqueeze(0)
@@ -221,7 +252,6 @@ class AdsNet(nn.Module):
                 create_graph=True,
             )[0]
 
-            # diff = R_j - R_i, so -dE/dR_j = -dE/ddiff, -dE/dR_i = dE/ddiff
             i_forces = torch.zeros_like(input_dict['ads_coords']).index_add(0, ads_idx_pairs_compact[:, 0], dE_ddiff)
             j_forces = torch.zeros_like(input_dict['ads_coords']).index_add(0, ads_idx_pairs_compact[:, 1], -dE_ddiff)
             result_dict['ads_forces'] = i_forces + j_forces
