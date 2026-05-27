@@ -4,7 +4,7 @@ from adsnet.trainer import Trainer
 path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 
 trainer = Trainer(
-    dataset=f'{path}/images_refined.traj',
+    model="adsnet",
     config={
         "node_size": 128,
         "num_interactions": 3,
@@ -15,10 +15,13 @@ trainer = Trainer(
         "forces_weight": 0.05,
         "stop_patience": 200,
         "log_interval": 2000,
-        "device": "cpu",
-        "output_dir": f'{path}/model_output',
+        'load_model': f'{path}/output/model.pt',
+        "output_dir": f'{path}/output',
+        "output_log": "output.log",
+        "output_model": "model.pt",
     },
+    distributed=False,
 )
 
 if __name__ == '__main__':
-    trainer.train()
+    trainer.train(f'{path}/images_refined.traj')

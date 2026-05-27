@@ -17,7 +17,7 @@ DEFAULT_CONFIG = {
     "num_interactions": 3,
     "cutoff": 5.5,
     # Training parameters
-    "device": "cpu",
+    "device": None,
     "batch_size": 12,
     "initial_lr": 0.0001,
     "max_steps": 1000000,
@@ -34,7 +34,9 @@ DEFAULT_CONFIG = {
     "random_seed": 3407,
     "load_model": None,
     # Output
-    "output_dir": "model_output",
+    "output_dir": "output",
+    "output_log": "output.log",
+    "output_model": "model.pt",
     "log_interval": 10,
 }
 
@@ -171,24 +173,40 @@ def eval_model(model, dataloader, device, forces_weight):
 class Trainer:
     """Trainer class for AdsNet models."""
 
-    def __init__(self, dataset, config=None):
+    def __init__(self, model="adsnet", config=None, distributed=False):
         """
         Initialize the trainer.
 
         Args:
-            dataset: Path to .traj file or ASE images list
+            model (str): Model type (currently only "adsnet")
             config (dict, optional): Configuration overrides for DEFAULT_CONFIG
+            distributed (bool): Whether to use distributed training
         """
         self.config = DEFAULT_CONFIG.copy()
         if config:
             self.config.update(config)
 
-        self.dataset_path = dataset
-        self.device = torch.device(self.config["device"])
+        self.model_type = model.lower()
+        self.distributed = distributed
+        self.device = torch.device(self.config["device"]) if self.config.get("device") else None
 
-    def train(self):
+    def train(self, dataset_path=None):
+        """
+        Train the model on a dataset.
+
+        Args:
+            dataset_path (str): Path to .traj file
+        """
+        if dataset_path is None:
+            dataset_path = self.config.get("dataset")
+            if not dataset_path:
+                raise ValueError("Dataset path must be provided via train() argument or in config['dataset']")
+
         config = self.config
         setup_seed(config["random_seed"])
+
+        if self.device is None:
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         os.makedirs(config["output_dir"], exist_ok=True)
         logging.basicConfig(
@@ -196,7 +214,7 @@ class Trainer:
             format="%(asctime)s [%(levelname)-5.5s]  %(message)s",
             handlers=[
                 logging.FileHandler(
-                    os.path.join(config["output_dir"], "printlog.txt"), mode="w"
+                    os.path.join(config["output_dir"], config["output_log"]), mode="w"
                 ),
                 logging.StreamHandler(),
             ],
@@ -207,9 +225,9 @@ class Trainer:
 
         torch.tensor([0], device=self.device)
 
-        logging.info("loading data %s", self.dataset_path)
+        logging.info("loading data %s", dataset_path)
         dataset = AseData(
-            self.dataset_path,
+            dataset_path,
             cutoff=config["cutoff"],
             compute_forces=bool(config["forces_weight"]),
         )
@@ -345,7 +363,7 @@ class Trainer:
                                 "num_layer": config["num_interactions"],
                                 "cutoff": config["cutoff"],
                             },
-                            os.path.join(config["output_dir"], "best_model.pth"),
+                            os.path.join(config["output_dir"], config["output_model"]),
                         )
                     else:
                         logging.info("Early stop reached, exiting")
@@ -369,7 +387,7 @@ class Trainer:
                             "num_layer": config["num_interactions"],
                             "cutoff": config["cutoff"],
                         },
-                        os.path.join(config["output_dir"], "exit_model.pth"),
+                        os.path.join(config["output_dir"], "exit_" + config["output_model"]),
                     )
                     return best_val_loss
 
