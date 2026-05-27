@@ -22,8 +22,6 @@ DEFAULT_CONFIG = {
     "initial_lr": 0.0001,
     "max_steps": 1000000,
     "forces_weight": 0.05,
-    "normalization": False,
-    "atomwise_normalization": True,
     # Scheduler
     "plateau_scheduler": False,
     "lr_decay_factor": 0.5,
@@ -74,29 +72,6 @@ def forces_criterion(predicted, target, reduction="mean"):
     else:
         raise ValueError("Reduction must be 'mean' or 'sum'")
 
-
-def get_normalization(dataset, per_atom=True):
-    x_sum = torch.zeros(1, dtype=torch.double)
-    x_2 = torch.zeros(1, dtype=torch.double)
-    num_objects = 0
-    for i, sample in enumerate(dataset):
-        if i == 0:
-            if per_atom:
-                bias = sample["ads_energy"] / sample["num_atoms"]
-            else:
-                bias = sample["ads_energy"]
-        x = sample["ads_energy"]
-        if per_atom:
-            x = x / sample["num_atoms"]
-        x -= bias
-        x_sum += x
-        x_2 += x ** 2.0
-        num_objects += 1
-    x_mean = x_sum / num_objects
-    x_var = x_2 / num_objects - x_mean ** 2.0
-    x_mean = x_mean + bias
-    default_type = torch.get_default_dtype()
-    return x_mean.type(default_type), torch.sqrt(x_var).type(default_type)
 
 
 def split_data(dataset, config):
@@ -263,26 +238,10 @@ class Trainer:
             )
         )
 
-        target_mean = [0.0]
-        target_stddev = [1.0]
-        if config["normalization"]:
-            logging.info("Computing mean and variance")
-            mean, stddev = get_normalization(
-                datasplits["train"],
-                per_atom=config["atomwise_normalization"],
-            )
-            target_mean = mean.tolist()
-            target_stddev = stddev.tolist()
-            logging.debug("target_mean=%f, target_stddev=%f" % (mean, stddev))
-
         net = AdsNet(
             num_interactions=config["num_interactions"],
             hidden_state_size=config["node_size"],
             cutoff=config["cutoff"],
-            normalization=config["normalization"],
-            target_mean=target_mean,
-            target_stddev=target_stddev,
-            atomwise_normalization=config["atomwise_normalization"],
             compute_forces=bool(config["forces_weight"]),
         )
         net.to(self.device)

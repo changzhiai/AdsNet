@@ -1,3 +1,3 @@
-from adsnet.models.adsnet import AdsNet, PainnMessage, PainnUpdate
+from adsnet.models.adsnet import AdsNet, Interaction
 
-__all__ = ["AdsNet", "PainnMessage", "PainnUpdate"]
+__all__ = ["AdsNet", "Interaction"]
