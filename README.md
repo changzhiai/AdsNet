@@ -9,7 +9,7 @@ AdsNet is a machine learning framework for predicting adsorption properties usin
 ## Installation
 
 ```bash
-git clone https://github.com/changzhiai/AdsNet.git
+git clone git@github.com:changzhiai/AdsNet.git
 cd AdsNet
 pip install -e .
 ```
@@ -36,6 +36,7 @@ from adsnet.trainer import Trainer
 
 trainer = Trainer(
     config={
+        "device": "cpu", 
         "node_size": 128,
         "num_interactions": 3,
         "cutoff": 5.5,
@@ -43,7 +44,8 @@ trainer = Trainer(
         "max_steps": 1000000,
         "forces_weight": 0.05,
         "device": "cuda",
-        "output_dir": "model_output",
+        "output_dir": "output",
+        "output_model": "model.pt",
     },
     distributed=False
 )
@@ -59,7 +61,7 @@ from adsnet.models import AdsNet
 from adsnet.calculators import MLCalculator
 
 # Load model
-state_dict = torch.load("model_output/best_model.pth", map_location="cpu")
+state_dict = torch.load("output/model.pt", map_location="cpu")
 model = AdsNet(
     num_interactions=state_dict["num_layer"],
     hidden_state_size=state_dict["node_size"],
@@ -145,3 +147,9 @@ All training parameters with defaults (see `adsnet.trainer.DEFAULT_CONFIG`):
 | `stop_patience` | 200 | Early stopping patience |
 | `device` | "cpu" | "cpu" or "cuda" |
 
+## Issues
+
+For questions, issues, and contributions, please use the GitHub issue tracker
+
+## Maintainer
+Maintainer `Dr. Changzhi Ai` (changzhi@stanford.edu) at SUNCAT center, Stanford University and SLAC, who is supervised by Dr. Johannes Voss and Dr. Frank Abild-Pedersen.
