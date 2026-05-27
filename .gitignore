@@ -6,7 +6,14 @@ test/painn/model_output*
 test/nequip/*.png
 test/nequip/*.csv
 .DS_Store
+*.pth
 run.toml
+*.png
+*.csv
+*.log
+*.json
+args.*
+*.traj
+*.txt
 *.pyc
-proj
 metals_with_adss.traj
