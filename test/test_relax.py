@@ -1,11 +1,9 @@
 from ase.io import read, write, Trajectory
-import numpy as np
 import torch
-import toml
 import argparse
 import logging
-from adsnet.painn import PainnModel
-from adsnet.calculator import MLCalculator, EnsembleCalculator
+from adsnet.models import AdsNet
+from adsnet.calculators import MLCalculator, EnsembleCalculator
 from ase.constraints import FixAtoms
 from ase.optimize import BFGS
 from ase.db import connect
@@ -122,7 +120,7 @@ def get_init_bad_structs(args):
     write('images_bad.traj', images_bad)
     return df
 
-def main(read_csv=False):
+def relax(read_csv=False):
     args = get_arguments()
     if args.cfg:
         with open(args.cfg, 'r') as f:
@@ -151,7 +149,7 @@ def main(read_csv=False):
     logger.info = CallsCounter(logger.info)
     # load model
     state_dict = torch.load(f'{path}/{args.load_model}', map_location=torch.device(args.device)) 
-    model = PainnModel(
+    model = AdsNet(
         num_interactions=state_dict["num_layer"],
         hidden_state_size=state_dict["node_size"],
         cutoff=state_dict["cutoff"],
@@ -162,37 +160,71 @@ def main(read_csv=False):
     calc = MLCalculator(model)
 
     images = read(f'{path}/{args.dataset}', ':')
-    print(f'{path}/{args.dataset}', len(images))
     count = 0
     formulas = []
     dft_energies = []
     nnp_energies = []
     E_per_atoms = args.E_per_atoms
-    for atoms in images:
-        E_dft = atoms.info['data']['ads_energy']
-        if E_per_atoms:
-            E_dft = E_dft/len(atoms.info['ads_idx'])
-        dft_energies.append(E_dft)
-    for atoms in images:
-        formula = atoms.get_chemical_formula(mode='hill')
-        formulas.append(formula)
-        atoms.calc = calc
-        logger.info('finishing: {}'.format(count))
-        E_nnp = atoms.get_potential_energy()
-        if E_per_atoms:
-            E_nnp = E_nnp/len(atoms.info['ads_idx'])
-        nnp_energies.append(E_nnp)
-        count += 1
-    tuples = {
-            'formula': formulas,
-            'dft_energies': dft_energies,
-            'nnp_energies':nnp_energies,
-            }
-    df = pd.DataFrame(tuples)
-    df.to_csv(f'{path}/{args.output_dir}/{args.save_csv}')
-    return df['dft_energies'], df['nnp_energies'], args.fig_name, args.output_dir
+    for i, atoms in enumerate(images):
+        import copy
+        from ase.visualize import view
+        if i != 120:
+            continue
+        ads_idx = atoms.info['data']['ads_idx']
+        if len(ads_idx) == 1:
+            atoms[ads_idx[0]].z += 0.4
+        traj = []
+        def compute_properties(ads_pos):
+            atoms_temp = copy.deepcopy(atoms)
+            ads_idx = atoms.info['data']['ads_idx']
+            if len(ads_idx) == 1:
+                atoms_temp[ads_idx[0]].position = ads_pos
+
+            atoms_temp.calc = copy.deepcopy(calc)
+            binding_energy = atoms_temp.get_potential_energy()
+            ads_forces = atoms_temp.calc.results['ads_forces']
+            local_idx = atoms_temp.calc.results['local_idx']
+            local_energies = atoms_temp.calc.results['local_energies']
+            ads_idx_in_local = list(local_idx).index(ads_idx)
+            ads_force = ads_forces[ads_idx_in_local]
+            return binding_energy, ads_force, local_idx, local_energies, atoms_temp
+
+        def objective(ads_pos):
+            binding_energy, _, _, _, atoms_new = compute_properties(ads_pos)
+            # view(atoms_new)
+            ads_idx = atoms.info['data']['ads_idx']
+            print(f"Objective function evaluated at ads_pos: {ads_pos}, ads_idx: {ads_idx}")
+            print(atoms_new[ads_idx].positions)
+            traj.append(atoms_new)
+            return binding_energy
+        
+        def gradient(ads_pos):
+            _, ads_forces, _, _, _ = compute_properties(ads_pos)
+            return -np.ascontiguousarray(ads_forces, dtype=np.float64).ravel()
+        
+
+        atoms_init = copy.deepcopy(atoms)
+        ads_pos = atoms_init[atoms.info['data']['ads_idx']].positions.flatten()
+        print(f"ads_pos shape: {ads_pos.shape}, dtype: {ads_pos.dtype}")
+        print(f'ads_pos: {ads_pos}')
+
+        max_step = 0.2
+        bounds = [(x - max_step, x + max_step) for x in ads_pos]
+        from scipy.optimize import minimize
+        result = minimize(
+            objective, ads_pos.copy(), 
+            jac=gradient, 
+            # method='BFGS', 
+            method='L-BFGS-B', 
+            # method='TNC',
+            tol=1e-4,
+            bounds=bounds,
+            )
+        print(result)
+        view(traj)
+        # break
+
 
 if __name__ == "__main__":
-    dft_energies, nnp_energies, fig_name, output_dir = main(read_csv=False)
-    plot_fitting(dft_energies, nnp_energies, fig_name=fig_name, output_dir=output_dir)
-    print('Predict done!')
+    relax(read_csv=False) # relax one atom adsorbate
+

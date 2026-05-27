@@ -5,7 +5,7 @@ from ase.io import read
 import unittest,os,time,sys,toml,itertools
 
 from adsnet.data import AseData,collate_atomsdata
-from adsnet.painn import PainnModel
+from adsnet.models import AdsNet
 
 path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 
@@ -277,7 +277,7 @@ def main():
         )
         logging.debug("target_mean=%f, target_stddev=%f" % (target_mean, target_stddev))
 
-    net = PainnModel(
+    net = AdsNet(
         num_interactions=args.num_interactions, 
         hidden_state_size=args.node_size,
         cutoff=args.cutoff,

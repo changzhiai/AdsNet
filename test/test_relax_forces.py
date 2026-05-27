@@ -1,16 +1,17 @@
 from ase.io import read, write, Trajectory
 import torch
-import toml
 import argparse
 import logging
-from adsnet.painn import PainnModel
-from adsnet.calculator import MLCalculator, EnsembleCalculator
+from adsnet.models import AdsNet
+from adsnet.calculators import MLCalculator, EnsembleCalculator
 from ase.constraints import FixAtoms
 from ase.optimize import BFGS
 from ase.db import connect
 import numpy as np
 import pandas as pd
 import os
+import copy
+from ase.visualize import view
 
 path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 
@@ -150,7 +151,7 @@ def relax(read_csv=False):
     logger.info = CallsCounter(logger.info)
     # load model
     state_dict = torch.load(f'{path}/{args.load_model}', map_location=torch.device(args.device)) 
-    model = PainnModel(
+    model = AdsNet(
         num_interactions=state_dict["num_layer"],
         hidden_state_size=state_dict["node_size"],
         cutoff=state_dict["cutoff"],
@@ -161,53 +162,53 @@ def relax(read_csv=False):
     calc = MLCalculator(model)
 
     images = read(f'{path}/{args.dataset}', ':')
+    # view(images)
     count = 0
     formulas = []
     dft_energies = []
     nnp_energies = []
     E_per_atoms = args.E_per_atoms
     for i, atoms in enumerate(images):
-        import copy
-        from ase.visualize import view
-        if i != 120:
+        
+        if i != 100:
             continue
+        # view(atoms)
+        
         ads_idx = atoms.info['data']['ads_idx']
-        if len(ads_idx) == 1:
-            atoms[ads_idx[0]].z += 0.4
+        # if len(ads_idx) == 1:
+        #     atoms[ads_idx[0]].z += 0.2
+        atoms[ads_idx[0]].z += 0.5
         traj = []
+
+        atoms_init = copy.deepcopy(atoms)
+        atoms_init.calc = copy.deepcopy(calc)
+        _ = atoms_init.get_potential_energy()
+        local_idx = atoms_init.calc.results['local_idx']
+        ads_pos = atoms_init[local_idx].positions.flatten()
+        print(f"ads_pos shape: {ads_pos.shape}, dtype: {ads_pos.dtype}")
+        print(f'ads_pos: {ads_pos}')
+        
         def compute_properties(ads_pos):
             atoms_temp = copy.deepcopy(atoms)
-            ads_idx = atoms.info['data']['ads_idx']
-            if len(ads_idx) == 1:
-                atoms_temp[ads_idx[0]].position = ads_pos
+            for id, pos in enumerate(ads_pos.reshape(-1, 3)):
+                atoms_temp[local_idx[id]].position = pos
 
             atoms_temp.calc = copy.deepcopy(calc)
             binding_energy = atoms_temp.get_potential_energy()
             ads_forces = atoms_temp.calc.results['ads_forces']
-            local_idx = atoms_temp.calc.results['local_idx']
             local_energies = atoms_temp.calc.results['local_energies']
-            ads_idx_in_local = list(local_idx).index(ads_idx)
-            ads_force = ads_forces[ads_idx_in_local]
-            return binding_energy, ads_force, local_idx, local_energies, atoms_temp
+            return binding_energy, ads_forces, local_idx, local_energies, atoms_temp
 
         def objective(ads_pos):
+            print(f'ads_pos: {ads_pos}')
             binding_energy, _, _, _, atoms_new = compute_properties(ads_pos)
-            # view(atoms_new)
-            ads_idx = atoms.info['data']['ads_idx']
-            print(f"Objective function evaluated at ads_pos: {ads_pos}, ads_idx: {ads_idx}")
-            print(atoms_new[ads_idx].positions)
+            print(f'binding energy: {binding_energy}, ads_pos: {(atoms_new[local_idx].positions).tolist()}')
             traj.append(atoms_new)
             return binding_energy
         
         def gradient(ads_pos):
             _, ads_forces, _, _, _ = compute_properties(ads_pos)
             return -np.ascontiguousarray(ads_forces, dtype=np.float64).ravel()
-        
-
-        atoms_init = copy.deepcopy(atoms)
-        ads_pos = atoms_init[atoms.info['data']['ads_idx']].positions.flatten()
-        print(f"ads_pos shape: {ads_pos.shape}, dtype: {ads_pos.dtype}")
-        print(f'ads_pos: {ads_pos}')
 
         max_step = 0.2
         bounds = [(x - max_step, x + max_step) for x in ads_pos]
@@ -215,9 +216,10 @@ def relax(read_csv=False):
         result = minimize(
             objective, ads_pos.copy(), 
             jac=gradient, 
-            # method='BFGS', 
+            # method='BFGS',
             method='L-BFGS-B', 
             # method='TNC',
+            # method='Nelder-Mead',
             tol=1e-4,
             bounds=bounds,
             )
@@ -225,7 +227,6 @@ def relax(read_csv=False):
         view(traj)
         # break
 
-
 if __name__ == "__main__":
-    relax(read_csv=False) # relax one atom adsorbate
+    relax(read_csv=False)
 

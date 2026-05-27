@@ -4,8 +4,8 @@ import torch
 import toml
 import argparse
 import logging
-from adsnet.painn import PainnModel
-from adsnet.calculator import MLCalculator, EnsembleCalculator
+from adsnet.models import AdsNet
+from adsnet.calculators import MLCalculator, EnsembleCalculator
 from ase.constraints import FixAtoms
 from ase.optimize import BFGS
 from ase.db import connect
@@ -151,7 +151,7 @@ def main(read_csv=False):
     logger.info = CallsCounter(logger.info)
     # load model
     state_dict = torch.load(f'{path}/{args.load_model}', map_location=torch.device(args.device)) 
-    model = PainnModel(
+    model = AdsNet(
         num_interactions=state_dict["num_layer"],
         hidden_state_size=state_dict["node_size"],
         cutoff=state_dict["cutoff"],

@@ -129,8 +129,8 @@ class PainnUpdate(nn.Module):
         return node_scalar + delta_s, node_vector + delta_v
         # return delta_s, delta_v
 
-class PainnModel(nn.Module):
-    """PainnModel without ads_idx_pairs updating"""
+class AdsNet(nn.Module):
+    """AdsNet: PaiNN-based message passing model for adsorption energy prediction."""
     def __init__(
         self, 
         num_interactions,
