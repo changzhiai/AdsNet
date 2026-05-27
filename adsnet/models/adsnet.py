@@ -91,7 +91,7 @@ class Interaction(nn.Module):
 
 
 class AdsNet(nn.Module):
-    """AdsNet: PaiNN-based message passing model for adsorption energy prediction."""
+    """AdsNet: Adsorption Network: GNN message passing model for adsorption energy prediction."""
     def __init__(
         self,
         num_interactions,
