@@ -67,8 +67,8 @@ def plot_forces_rmse(df, i, dir, save):
     return ax
 
 if __name__ == '__main__':
-    output_dir = 'model_output'
-    name = f'{path}/{output_dir}/printlog.txt'
+    output_dir = 'output'
+    name = f'{path}/{output_dir}/output.log'
     save = 'learning_curve'
     df = generate_csv(name, save)
     df = pd.read_csv(f'{path}/{output_dir}/{save}.csv', skiprows=[])

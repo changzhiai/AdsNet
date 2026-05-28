@@ -4,6 +4,8 @@ import json
 import logging
 import math
 import os
+import platform
+import socket
 import time
 import itertools
 
@@ -17,7 +19,7 @@ DEFAULT_CONFIG = {
     "num_interactions": 3,
     "cutoff": 5.5,
     # Training parameters
-    "device": "cpu",
+    "device": None,
     "batch_size": 12,
     "initial_lr": 0.0001,
     "max_steps": 1000000,
@@ -34,8 +36,12 @@ DEFAULT_CONFIG = {
     "random_seed": 3407,
     "load_model": None,
     # Output
-    "output_dir": "model_output",
+    "output_dir": "output",
+    "output_log": "output.log",
+    "output_model": "model.pt",
     "log_interval": 10,
+    "save_config": False,
+    "save_split": False,
 }
 
 
@@ -87,9 +93,8 @@ def split_data(dataset, config):
             "validation": indices[:num_validation].tolist(),
         }
 
-    output_dir = config["output_dir"]
-    if output_dir:
-        with open(os.path.join(output_dir, "datasplits.json"), "w") as f:
+    if config.get("save_split"):
+        with open(os.path.join(config["output_dir"], "datasplits.json"), "w") as f:
             json.dump(splits, f)
 
     datasplits = {}
@@ -171,24 +176,40 @@ def eval_model(model, dataloader, device, forces_weight):
 class Trainer:
     """Trainer class for AdsNet models."""
 
-    def __init__(self, dataset, config=None):
+    def __init__(self, model="adsnet", config=None, distributed=False):
         """
         Initialize the trainer.
 
         Args:
-            dataset: Path to .traj file or ASE images list
+            model (str): Model type (currently only "adsnet")
             config (dict, optional): Configuration overrides for DEFAULT_CONFIG
+            distributed (bool): Whether to use distributed training
         """
         self.config = DEFAULT_CONFIG.copy()
         if config:
             self.config.update(config)
 
-        self.dataset_path = dataset
-        self.device = torch.device(self.config["device"])
+        self.model_type = model.lower()
+        self.distributed = distributed
+        self.device = torch.device(self.config["device"]) if self.config.get("device") else None
 
-    def train(self):
+    def train(self, dataset_path=None):
+        """
+        Train the model on a dataset.
+
+        Args:
+            dataset_path (str): Path to .traj file
+        """
+        if dataset_path is None:
+            dataset_path = self.config.get("dataset")
+            if not dataset_path:
+                raise ValueError("Dataset path must be provided via train() argument or in config['dataset']")
+
         config = self.config
         setup_seed(config["random_seed"])
+
+        if self.device is None:
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         os.makedirs(config["output_dir"], exist_ok=True)
         logging.basicConfig(
@@ -196,20 +217,27 @@ class Trainer:
             format="%(asctime)s [%(levelname)-5.5s]  %(message)s",
             handlers=[
                 logging.FileHandler(
-                    os.path.join(config["output_dir"], "printlog.txt"), mode="w"
+                    os.path.join(config["output_dir"], config["output_log"]), mode="a"
                 ),
                 logging.StreamHandler(),
             ],
         )
 
-        with open(os.path.join(config["output_dir"], "arguments.json"), "w") as f:
-            json.dump(config, f, default=str)
+        # System info
+        logging.info(f"PyTorch version: {torch.__version__}")
+        logging.info(f"Running on {socket.gethostname()}")
+        logging.info(f"Hardware architecture: {platform.machine()}")
+
+        if config["save_config"]:
+            with open(os.path.join(config["output_dir"], "arguments.json"), "w") as f:
+                json.dump(config, f, default=str)
 
         torch.tensor([0], device=self.device)
 
-        logging.info("loading data %s", self.dataset_path)
+        # Data
+        logging.info(f"Loading data from {dataset_path}")
         dataset = AseData(
-            self.dataset_path,
+            dataset_path,
             cutoff=config["cutoff"],
             compute_forces=bool(config["forces_weight"]),
         )
@@ -230,14 +258,10 @@ class Trainer:
             drop_last=True,
         )
 
-        logging.info(
-            'Dataset size: {}, training set size: {}, validation set size: {}'.format(
-                len(dataset),
-                len(datasplits["train"]),
-                len(datasplits["validation"]),
-            )
-        )
+        logging.info(f"Dataset size: {len(dataset)}, training set size: {len(datasplits['train'])}, validation set size: {len(datasplits['validation'])}")
+        logging.info(f"Compute forces: {bool(config['forces_weight'])}")
 
+        # Model
         net = AdsNet(
             num_interactions=config["num_interactions"],
             hidden_state_size=config["node_size"],
@@ -246,7 +270,29 @@ class Trainer:
         )
         net.to(self.device)
         total_params = sum(p.numel() for p in net.parameters() if p.requires_grad)
+        total_memory = sum(p.element_size() * p.numel() for p in net.parameters() if p.requires_grad)
         logging.info(f"Total trainable parameters: {total_params}")
+        logging.info(f"Total memory of the model: {total_memory / 1024**2:.2f} MB")
+
+        # Configuration summary
+        logging.info("---------------- Configuration Settings ----------------")
+        logging.info(f"Model Type (model): {self.model_type}")
+        logging.info(f"Node Size (node_size): {config['node_size']}")
+        logging.info(f"Number of Interactions (num_interactions): {config['num_interactions']}")
+        logging.info(f"Cutoff Radius (cutoff): {config['cutoff']}")
+        logging.info(f"Batch Size (batch_size): {config['batch_size']}")
+        logging.info(f"Learning Rate (initial_lr): {config['initial_lr']}")
+        logging.info(f"Forces Weight (forces_weight): {config['forces_weight']}")
+        logging.info(f"Max Steps (max_steps): {config['max_steps']}")
+        logging.info(f"Log Interval (log_interval): {config['log_interval']}")
+        logging.info(f"Early Stopping Patience (stop_patience): {config['stop_patience']}")
+        logging.info(f"Plateau Scheduler (plateau_scheduler): {config['plateau_scheduler']}")
+        logging.info(f"Random Seed (random_seed): {config['random_seed']}")
+        logging.info(f"Distributed Training (distributed): {self.distributed}")
+        logging.info(f"Output Directory (output_dir): {config['output_dir']}")
+        logging.info(f"Output Log File (output_log): {config['output_log']}")
+        logging.info(f"Output Model File (output_model): {config['output_model']}")
+
 
         optimizer = torch.optim.Adam(net.parameters(), lr=config["initial_lr"])
         criterion = torch.nn.HuberLoss(delta=1.0)
@@ -277,6 +323,7 @@ class Trainer:
             optimizer.load_state_dict(state_dict["optimizer"])
             scheduler.load_state_dict(state_dict["scheduler"])
 
+        logging.info("---------------------- Training ------------------------")
         for epoch in itertools.count():
             for batch_host in train_loader:
                 start = time.time()
@@ -345,7 +392,7 @@ class Trainer:
                                 "num_layer": config["num_interactions"],
                                 "cutoff": config["cutoff"],
                             },
-                            os.path.join(config["output_dir"], "best_model.pth"),
+                            os.path.join(config["output_dir"], config["output_model"]),
                         )
                     else:
                         logging.info("Early stop reached, exiting")
@@ -369,7 +416,7 @@ class Trainer:
                             "num_layer": config["num_interactions"],
                             "cutoff": config["cutoff"],
                         },
-                        os.path.join(config["output_dir"], "exit_model.pth"),
+                        os.path.join(config["output_dir"], "exit_" + config["output_model"]),
                     )
                     return best_val_loss
 

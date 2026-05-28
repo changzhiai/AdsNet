@@ -8,7 +8,6 @@ path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 
 def main():
     trainer = Trainer(
-        dataset=f'{path}/Pt_ads_forces.traj',
         config={
             "node_size": 128,
             "num_interactions": 3,
@@ -16,14 +15,18 @@ def main():
             "batch_size": 12,
             "initial_lr": 1e-4,
             "max_steps": 1000000,
-            "forces_weight": 0.05,
-            "stop_patience": 200,
+            "forces_weight": 0.70,
+            "stop_patience": 800,
             "device": "cpu",
-            "output_dir": f'{path}/model_output',
+            "output_dir": f'{path}/output',
+            "output_log": "output.log",
+            "output_model": "model.pt",
+            "load_model": f'{path}/output/model.pt',
             "log_interval": 10,
         },
+        distributed=False,
     )
-    trainer.train()
+    trainer.train(f'{path}/Pt_ads_forces.traj')
 
 
 class TrainTestCase(unittest.TestCase):

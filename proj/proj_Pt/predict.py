@@ -1,203 +1,102 @@
-from ase.io import read, write, Trajectory
-import numpy as np
 import torch
-import toml
-import argparse
-import logging
-from adsnet.models import AdsNet
-from adsnet.calculators import MLCalculator, EnsembleCalculator
-from ase.constraints import FixAtoms
-from ase.optimize import BFGS
-from ase.db import connect
 import numpy as np
-import pandas as pd
 import os
+import pandas as pd
+from ase.io import read, write
+import matplotlib.pyplot as plt
+
+from adsnet.models import AdsNet
+from adsnet.calculators import MLCalculator
 
 path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 
-class EnergyObservor:
-    def __init__(self, atoms):
-        self.atoms = atoms
-        print("Energy observor")
 
-    def __call__(self, threshold=0):
-        energy = self.atoms.get_potential_energy()
-        forces = self.atoms.get_forces()
-        print(f'energy: {energy}')
-        if energy > threshold or energy<-10000:
-            raise ValueError('energy is too large or too low')
+def plot_fitting(dft_energies, nnp_energies, fig_name='fitting.png'):
+    dft = np.array(dft_energies)
+    nnp = np.array(nnp_energies)
+    rmse = np.sqrt(np.mean((dft - nnp) ** 2))
+    mae = np.mean(np.abs(dft - nnp))
 
-def plot_fitting(dft_energies, nnp_energies, fig_name='prediction.png', output_dir=None):
-    import matplotlib.pyplot as plt
-    from sklearn.metrics import mean_squared_error
-    rmse = mean_squared_error(dft_energies, nnp_energies) ** 0.5
-    m, b = np.polyfit(dft_energies, nnp_energies, 1)
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    plt.plot(np.array(dft_energies), m * np.array(dft_energies) + b)
-    plt.plot(dft_energies, nnp_energies, 'ob',mfc='none')
-    plt.xlabel("$E_b$(DFT) (eV)")
-    plt.ylabel("$E_b$(NNP) (eV)")
-    plt.title("fit using {} data points.".format(len(nnp_energies)))
-    X = dft_energies
-    Y = nnp_energies
-    if np.size(X) and np.size(Y) != 0:
-        e_range = max(np.append(X, Y)) - min(np.append(X, Y))
-        rmin = min(np.append(X, Y)) - 0.05 * e_range
-        rmax = max(np.append(X, Y)) + 0.05 * e_range
-    else:
-        rmin = -10
-        rmax = 10
-    linear_fit = np.arange(rmin - 10, rmax + 10, 1)
-    ax.plot(linear_fit, linear_fit, 'r')
-    ax.axis([rmin, rmax, rmin, rmax])
-    ax.text(0.95,
-            0.01,
-            "RMSE = {:.3f} meV".format(rmse*1000),
+    fig, ax = plt.subplots()
+    ax.plot(dft, nnp, 'ob', mfc='none')
+
+    e_range = max(np.append(dft, nnp)) - min(np.append(dft, nnp))
+    rmin = min(np.append(dft, nnp)) - 0.05 * e_range
+    rmax = max(np.append(dft, nnp)) + 0.05 * e_range
+    ax.plot([rmin, rmax], [rmin, rmax], 'r')
+    ax.set_xlim(rmin, rmax)
+    ax.set_ylim(rmin, rmax)
+
+    ax.set_xlabel("$E_b$(DFT) (eV)")
+    ax.set_ylabel("$E_b$(NNP) (eV)")
+    ax.set_title(f"Parity plot ({len(dft)} structures)")
+    ax.text(0.95, 0.05,
+            f"MAE = {mae*1000:.1f} meV\nRMSE = {rmse*1000:.1f} meV",
             verticalalignment='bottom',
             horizontalalignment='right',
             transform=ax.transAxes,
-            fontsize=12)
-    ticks = False
-    if ticks:
-        plt.xticks(np.arange(min(X), max(Y), 0.2))
-        plt.yticks(np.arange(min(X), max(Y), 0.2))
+            fontsize=11)
+    ax.set_aspect('equal')
+    plt.tight_layout()
+    fig.savefig(f'{path}/{fig_name}', dpi=150)
     plt.show()
-    fig.savefig(f'{path}/{output_dir}/{fig_name}')
+    print(f'Saved figure to {path}/{fig_name}')
 
-def setup_seed(seed):
-     torch.manual_seed(seed)
-     if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
-     np.random.seed(seed)
-     torch.backends.cudnn.deterministic = True
 
-def get_arguments(arg_list=None):
-    parser = argparse.ArgumentParser(
-        description="graph neural networks", fromfile_prefix_chars="+"
-    )
-    parser.add_argument(
-        "--cfg",
-        type=str,
-        default=f"{path}/arguments_predict.toml",
-        help="Path to config file. e.g. 'arguments.toml'"
-    )
-
-    return parser.parse_args(arg_list)
-
-def update_namespace(ns, d):
-    for k, v in d.items():
-        ns.__dict__[k] = v
-
-class CallsCounter:
-    def __init__(self, func):
-        self.calls = 0
-        self.func = func
-    def __call__(self, *args, **kwargs):
-        self.calls += 1
-        self.func(*args, **kwargs)
-
-def generate_run_config(params):
-    # with open(os.path.join(params['run_dir'], "run.toml"), 'w') as f:
-    with open(os.path.join(path, "run.toml"), 'w') as f:
-        toml.dump(params, f)
-    return params
-
-def read_df(args):
-    df = pd.read_csv(f'{path}/{args.save_csv}')
-    # df = df.loc[df['converged']==True]
-    dft_energies = df['dft_energies']
-    nnp_energies = df['nnp_energies']
-    fig_name = args.fig_name
-    return dft_energies, nnp_energies, fig_name
-
-def get_init_bad_structs(args):
-    df = pd.read_csv(args.save_csv)
-    df = df[(df['dft_energies']-df['nnp_energies']>0.02) | (df['converged']==False)]
-    images = read(args.all_init_dft_dir, ':')
-    lists = list(df.index.values)
-    images_bad = [images[i] for i in lists]
-    print(len(images_bad))
-    print([images[i].get_chemical_formula() for i in lists])
-    write('images_bad.traj', images_bad)
-    return df
-
-def main(read_csv=False):
-    args = get_arguments()
-    if args.cfg:
-        with open(args.cfg, 'r') as f:
-            params = toml.load(f)
-    update_namespace(args, params)
-    if read_csv:
-        print('Reading csv')
-        # get_init_bad_structs(args)
-        return read_df(args)
-
-    _ = generate_run_config(params)
-    setup_seed(args.random_seed)
-    # set logger
-    logger = logging.getLogger(__file__)
-    logger.setLevel(logging.DEBUG)
-    runHandler = logging.FileHandler(f'{path}/{args.output_dir}/{args.predict_log}', mode='w')
-    runHandler.setLevel(logging.DEBUG)
-    runHandler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)7s - %(message)s"))
-    errorHandler = logging.FileHandler(f'{path}/{args.output_dir}/{args.error_log}', mode='w')
-    errorHandler.setLevel(logging.WARNING)
-    errorHandler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)7s - %(message)s"))
-    logger.addHandler(runHandler)
-    logger.addHandler(errorHandler)
-    logger.addHandler(logging.StreamHandler())
-    logger.warning = CallsCounter(logger.warning)
-    logger.info = CallsCounter(logger.info)
-    # load model
-    state_dict = torch.load(f'{path}/{args.load_model}', map_location=torch.device(args.device)) 
+def main():
+    # Load model
+    state_dict = torch.load(f'{path}/output/model.pt', map_location='cpu')
     model = AdsNet(
         num_interactions=state_dict["num_layer"],
         hidden_state_size=state_dict["node_size"],
         cutoff=state_dict["cutoff"],
-        compute_forces = bool(args.forces_weight),
     )
-    model.to(args.device)
     model.load_state_dict(state_dict["model"])
+    model.eval()
+
     calc = MLCalculator(model)
 
-    images = read(f'{args.dataset}', ':')
-    print(f'{args.dataset}', len(images))
-    count = 0
+    # Load dataset
+    images = read(f'{path}/Pt_ads_new.traj', ':')
+    print(f'Dataset: {len(images)} structures')
+
+    # Predict
     formulas = []
     dft_energies = []
     nnp_energies = []
-    E_per_atoms = args.E_per_atoms
+    new_images = []
     for atoms in images:
-        E_dft = atoms.info['data']['ads_energy']
-        if E_per_atoms:
-            E_dft = E_dft/len(atoms.info['ads_idx'])
-        dft_energies.append(E_dft)
-    for atoms in images:
-        formula = atoms.get_chemical_formula(mode='hill')
-        formulas.append(formula)
-        atoms.calc = calc
-        # logger.info('finishing: {}'.format(count))
-        try:
-            E_nnp = atoms.get_potential_energy()
-        except:
-            print(count)
-            count += 1
-            continue
-        if E_per_atoms:
-            E_nnp = E_nnp/len(atoms.info['ads_idx'])
-        nnp_energies.append(E_nnp)
-        count += 1
-    tuples = {
-            'formula': formulas,
-            'dft_energies': dft_energies,
-            'nnp_energies':nnp_energies,
-            }
-    df = pd.DataFrame(tuples)
-    df.to_csv(f'{path}/{args.output_dir}/{args.save_csv}')
-    return df['dft_energies'], df['nnp_energies'], args.fig_name, args.output_dir
+        formulas.append(atoms.get_chemical_formula(mode='hill'))
+        dft_energy = atoms.info['data']['ads_energy']
+        nnp_energy = calc.get_binding_energy(atoms)
+        dft_energies.append(dft_energy)
+        nnp_energies.append(nnp_energy)
+        if dft_energy > -7:
+            new_images.append(atoms)
+
+    # Report
+    dft = np.array(dft_energies)
+    nnp = np.array(nnp_energies)
+    mae = np.mean(np.abs(dft - nnp))
+    rmse = np.sqrt(np.mean((dft - nnp) ** 2))
+    print(f'MAE:  {mae*1000:.1f} meV')
+    print(f'RMSE: {rmse*1000:.1f} meV')
+
+    # Save to CSV
+    df = pd.DataFrame({
+        'formula': formulas,
+        'dft_energies': dft_energies,
+        'nnp_energies': nnp_energies,
+    })
+    csv_path = f'{path}/predict.csv'
+    df.to_csv(csv_path, index=False)
+    print(f'Saved predictions to {csv_path}')
+
+    # Plot
+    plot_fitting(dft_energies, nnp_energies)
+    write(f"{path}/Pt_ads_new.traj", new_images)
+    print(f'Saved {len(new_images)} structures with DFT energy < -7 eV to {path}/Pt_ads_new.traj')
+
 
 if __name__ == "__main__":
-    dft_energies, nnp_energies, fig_name, output_dir = main(read_csv=False)
-    plot_fitting(dft_energies, nnp_energies, fig_name=fig_name, output_dir=output_dir)
-    print('Predict done!')
+    main()

@@ -326,13 +326,16 @@ def relax_structure(
 
     traj = []
     n_evals = [0]
+    n_steps = [0]
     cache = {}
 
     fun_grad = make_fun_and_grad(atoms_work, local_idx, cache=cache, n_evals=n_evals)
 
     def record_and_callback(energy, x):
         if np.isfinite(energy) and energy <= 50:
+            n_steps[0] += 1
             traj.append(copy.deepcopy(atoms_work))
+            print(f'step {n_steps[0]}: binding energy = {energy:.6f} eV')
         if on_step is not None:
             on_step(energy, x)
 
@@ -359,6 +362,7 @@ def relax_structure(
             "atoms": atoms_work,
             "energy": result["fun"],
             "trajectory": traj,
+            "n_steps": n_steps[0],
             "n_evals": n_evals[0],
             "message": result["message"],
         }
@@ -369,6 +373,7 @@ def relax_structure(
             "atoms": atoms_work,
             "energy": result.fun,
             "trajectory": traj,
+            "n_steps": n_steps[0],
             "n_evals": n_evals[0],
             "message": str(result.message),
         }
