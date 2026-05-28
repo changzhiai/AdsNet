@@ -23,6 +23,8 @@ AdsNet/
 
 ## Neural Network Architecture
 
+![AdsNet Architecture](architecture.png)
+
 ### Overview
 
 ```

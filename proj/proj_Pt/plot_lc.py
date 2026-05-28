@@ -10,25 +10,17 @@ def generate_csv(name, save):
     import pandas as pd
     step, energy_rmse, forces_rmse = [], [], []
     with open(name) as log:
-        lines = log.readlines()
-        i = 0
-        for line in lines:
-            i += 1
-            if 'step=' in line:
-                break
-        print(i)
-        for line in lines[i:]:
-            if 'exiting' in line or 'stopping' in line:
-                break
-            cols = line.split(',')
-            cols[1] = cols[1].split(' ')[-1]
+        for line in log:
+            if '=' not in line:
+                continue
             dicts = {}
-            for col in cols[1:]:
-                kv = col.split('=')
-                k = kv[0].strip()
-                v = kv[1].strip()
-                dicts[k] = v
-            # print(dicts)
+            for col in line.split(','):
+                if '=' not in col:
+                    continue
+                k, v = col.split('=', 1)
+                dicts[k.strip().split()[-1]] = v.strip()
+            if not {'step', 'energy_rmse', 'forces_rmse'}.issubset(dicts):
+                continue
             step.append(dicts['step'])
             energy_rmse.append(float(dicts['energy_rmse']))
             forces_rmse.append(float(dicts['forces_rmse']))
