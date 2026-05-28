@@ -12,7 +12,7 @@ path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 
 def main():
     # Load model
-    state_dict = torch.load(f'{path}/model_output/best_model.pth', map_location='cpu')
+    state_dict = torch.load(f'{path}/output/model.pt', map_location='cpu')
     model = AdsNet(
         num_interactions=state_dict["num_layer"],
         hidden_state_size=state_dict["node_size"],
