@@ -1,6 +1,4 @@
-import unittest
 import os
-
 from adsnet.trainer import Trainer
 
 path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
@@ -30,11 +28,5 @@ def main():
     trainer.train(f'{path}/dataset/train.traj')
 
 
-class TrainTestCase(unittest.TestCase):
-
-    def test_Train(self):
-        main()
-
-
 if __name__ == '__main__':
-    unittest.main()
+    main()

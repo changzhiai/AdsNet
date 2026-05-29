@@ -34,36 +34,68 @@ def generate_csv(name, save):
     return df
 
 
-def plot_energy_rmse(df, i, dir, save):
-    fig, ax = plt.subplots()
-    plt.xlabel('Number of step')
-    ax.plot(df['step'], df['energy_rmse'], color=f'C{i}', label=dir)
-    ax.set_ylabel('Binding energy RMSE')
-    ax.tick_params(axis="y")
-    plt.ylim([-0.05, 1.3])
-    if save:
-        fig.savefig(f'{path}/{output_dir}/{save}.png')
-    # plt.show()
-    return ax
+def plot_individual(df, save):
+    for col, ylabel, suffix, color in [
+        ('energy_rmse', 'Energy RMSE (eV)',    'energy', 'C0'),
+        ('forces_rmse', 'Forces RMSE (eV/Å)', 'forces', 'C1'),
+    ]:
+        fig, ax = plt.subplots(figsize=(7, 4))
+        ax.plot(df['step'], df[col], color=color)
+        ax.set_xlabel('Step')
+        ax.set_ylabel(ylabel)
+        plt.tight_layout()
+        if save:
+            fname = f'{path}/{output_dir}/{save}_{suffix}.png'
+            fig.savefig(fname, dpi=150)
+            print(f'Saved figure to {fname}')
+        plt.show()
 
-def plot_forces_rmse(df, i, dir, save):
-    fig, ax = plt.subplots()
-    plt.xlabel('Number of step')
-    ax.plot(df['step'], df['forces_rmse'], color=f'C{i}', label=dir)
-    ax.set_ylabel('Forces RMSE')
-    ax.tick_params(axis="y")
-    plt.ylim([0.05, 0.35])
+
+def plot_separate(df, save):
+    fig, (ax_e, ax_f) = plt.subplots(2, 1, figsize=(7, 6), sharex=True)
+
+    ax_e.plot(df['step'], df['energy_rmse'], color='C0')
+    ax_e.set_ylabel('Energy RMSE (eV)')
+
+    ax_f.plot(df['step'], df['forces_rmse'], color='C1')
+    ax_f.set_ylabel('Forces RMSE (eV/Å)')
+    ax_f.set_xlabel('Step')
+
+    plt.tight_layout()
     if save:
-        fig.savefig(f'{path}/{output_dir}/{save}_forces.png')
-    # plt.show()
-    return ax
+        fig.savefig(f'{path}/{output_dir}/{save}_separate.png', dpi=150)
+        print(f'Saved figure to {path}/{output_dir}/{save}_separate.png')
+    plt.show()
+
+
+def plot_learning_curve(df, save):
+    fig, ax_e = plt.subplots(figsize=(7, 4))
+    ax_f = ax_e.twinx()
+
+    l1, = ax_e.plot(df['step'], df['energy_rmse'], color='C0', label='Energy RMSE')
+    l2, = ax_f.plot(df['step'], df['forces_rmse'], color='C1', label='Forces RMSE')
+
+    ax_e.set_xlabel('Step')
+    ax_e.set_ylabel('Energy RMSE (eV)',    color='C0')
+    ax_f.set_ylabel('Forces RMSE (eV/Å)', color='C1')
+    ax_e.tick_params(axis='y', labelcolor='C0')
+    ax_f.tick_params(axis='y', labelcolor='C1')
+
+    ax_e.legend(handles=[l1, l2], loc='upper right', fontsize=9)
+    plt.tight_layout()
+    if save:
+        fig.savefig(f'{path}/{output_dir}/{save}.png', dpi=150)
+        print(f'Saved figure to {path}/{output_dir}/{save}.png')
+    plt.show()
+
 
 if __name__ == '__main__':
     output_dir = 'output'
     name = f'{path}/{output_dir}/output.log'
     save = 'learning_curve'
     df = generate_csv(name, save)
-    df = pd.read_csv(f'{path}/{output_dir}/{save}.csv', skiprows=[])
+    df = pd.read_csv(f'{path}/{output_dir}/{save}.csv')
     print(df)
-    plot_energy_rmse(df, 1, 'Binding energy learning curve', save)
-    plot_forces_rmse(df, 1, 'Adsorbate forces learning curve', save)
+    plot_individual(df, save)
+    plot_separate(df, save)
+    plot_learning_curve(df, save)

@@ -356,6 +356,11 @@ class Trainer:
                     running_loss = running_loss_count = 0
 
                     eval_dict = eval_model(net, val_loader, self.device, config["forces_weight"])
+
+                    if any(np.isnan(v) for v in eval_dict.values()):
+                        logging.warning("NaN detected in evaluation metrics at step={}, stopping training model.".format(step))
+                        return best_val_loss
+
                     eval_formatted = ", ".join(
                         ["{}={:.3f}".format(k, v) for (k, v) in eval_dict.items()]
                     )
