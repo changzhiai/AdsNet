@@ -314,7 +314,7 @@ class Trainer:
         step = 0
         training_time = 0
 
-        if config["load_model"]:
+        if config["load_model"] and os.path.exists(config["load_model"]):
             logging.info(f"Load model from {config['load_model']}")
             state_dict = torch.load(config["load_model"], map_location=self.device)
             net.load_state_dict(state_dict["model"])
