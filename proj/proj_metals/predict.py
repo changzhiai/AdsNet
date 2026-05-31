@@ -139,7 +139,8 @@ def main():
     def predict_set(traj_path):
         images = read(traj_path, ':')
         formulas, dft_energies, nnp_energies = [], [], []
-        for atoms in images:
+        for i, atoms in enumerate(images):
+            print(f'Predicting {i}: {atoms.info["id"]}')
             formulas.append(atoms.get_chemical_formula(mode='hill'))
             dft_energies.append(atoms.info['data']['ads_energy'])
             nnp_energies.append(calc.get_binding_energy(atoms))
