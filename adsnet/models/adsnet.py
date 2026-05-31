@@ -17,7 +17,7 @@ class GaussianRBF(nn.Module):
     """Learnable Gaussian radial basis functions."""
     def __init__(self, num_rbf: int, cutoff: float):
         super().__init__()
-        centers = torch.linspace(0.0, cutoff, num_rbf)
+        centers = torch.linspace(0.5, cutoff, num_rbf)
         self.register_buffer('initial_centers', centers.clone())
         self.centers = nn.Parameter(centers)
         self.widths = nn.Parameter(torch.full((num_rbf,), 10.0 / (cutoff / num_rbf) ** 2))
@@ -65,10 +65,6 @@ class Interaction(nn.Module):
             nn.Linear(node_size, node_size * 3),
         )
 
-        # Layer normalization
-        self.layer_norm_scalar = nn.LayerNorm(node_size)
-        self.layer_norm_gate = nn.LayerNorm(node_size)
-
     def forward(self, node_scalar, node_vector, ads_idx_pairs, ads_edge_diff, edge_dist, rbf):
         # --- Message ---
         filter_weight = self.edge_embedding(rbf)
@@ -90,7 +86,7 @@ class Interaction(nn.Module):
         residual_scalar.index_add_(0, ads_idx_pairs[:, 0], message_scalar)
         residual_vector.index_add_(0, ads_idx_pairs[:, 0], message_vector)
 
-        node_scalar = self.layer_norm_scalar(node_scalar + residual_scalar)
+        node_scalar = node_scalar + residual_scalar
         node_vector = node_vector + residual_vector
 
         # --- Update ---
@@ -109,7 +105,7 @@ class Interaction(nn.Module):
         inner_prod = torch.sum(Uv * Vv, dim=1)
         delta_s = a_sv * inner_prod + a_ss
 
-        return self.layer_norm_gate(node_scalar + delta_s), node_vector + delta_v
+        return node_scalar + delta_s, node_vector + delta_v
 
 
 class AdsNet(nn.Module):
