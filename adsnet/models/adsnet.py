@@ -212,13 +212,11 @@ class AdsNet(nn.Module):
             device=coords.device, dtype=coords.dtype,
         )
 
-        # Message passing with residual connections across interactions
+        # Message passing
         for interaction in self.interactions:
-            scalar_in = node_scalar
             node_scalar, node_vector = interaction(
                 node_scalar, node_vector, ads_idx_pairs_compact, ads_edge_diff, edge_dist, rbf
             )
-            node_scalar = node_scalar + scalar_in
 
         # Gated equivariant readout
         vector_norm = torch.linalg.norm(
