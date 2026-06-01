@@ -141,10 +141,8 @@ class AdsNet(nn.Module):
             ]
         )
 
-        # Gated equivariant readout: use vector channel to gate scalar
-        self.readout_vector_proj = nn.Linear(hidden_state_size, hidden_state_size)
         self.readout_mlp = nn.Sequential(
-            nn.Linear(hidden_state_size * 2, hidden_state_size),
+            nn.Linear(hidden_state_size, hidden_state_size),
             nn.SiLU(),
             nn.Linear(hidden_state_size, 1),
         )
@@ -214,12 +212,7 @@ class AdsNet(nn.Module):
                 node_scalar, node_vector, ads_idx_pairs_compact, ads_edge_diff, edge_dist, rbf
             )
 
-        # Gated equivariant readout
-        vector_norm = torch.linalg.norm(
-            self.readout_vector_proj(node_vector), dim=1
-        )
-        readout_input = torch.cat((node_scalar, vector_norm), dim=-1)
-        atom_energies = self.readout_mlp(readout_input).squeeze(-1)
+        atom_energies = self.readout_mlp(node_scalar).squeeze(-1)
 
         if not bool(atom_energies.shape):
             atom_energies = atom_energies.unsqueeze(0)
