@@ -20,7 +20,8 @@ class GaussianRBF(nn.Module):
         centers = torch.linspace(0.5, cutoff, num_rbf)
         self.register_buffer('initial_centers', centers.clone())
         self.centers = nn.Parameter(centers)
-        self.widths = nn.Parameter(torch.full((num_rbf,), 10.0 / (cutoff / num_rbf) ** 2))
+        spacing = centers[1] - centers[0]
+        self.widths = nn.Parameter(torch.full((num_rbf,), 0.5 / spacing.item() ** 2))
 
     def forward(self, edge_dist: torch.Tensor):
         return torch.exp(-self.widths * (edge_dist.unsqueeze(-1) - self.centers) ** 2)
