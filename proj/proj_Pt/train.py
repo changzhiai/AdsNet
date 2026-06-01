@@ -1,6 +1,4 @@
-import unittest
 import os
-
 from adsnet.trainer import Trainer
 
 path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
@@ -23,17 +21,12 @@ def main():
             "output_model": "model.pt",
             "load_model": f'{path}/output/model.pt',
             "log_interval": 10,
+            "val_ratio": 0.1,
         },
         distributed=False,
     )
-    trainer.train(f'{path}/Pt_ads_forces.traj')
-
-
-class TrainTestCase(unittest.TestCase):
-
-    def test_Train(self):
-        main()
+    trainer.train(f'{path}/dataset/train.traj')
 
 
 if __name__ == '__main__':
-    unittest.main()
+    main()
