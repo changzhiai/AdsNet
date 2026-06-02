@@ -10,6 +10,7 @@ test/nequip/*.csv
 *.pt
 run.toml
 *.png
+*.pdf
 *.csv
 *.log
 *.json
