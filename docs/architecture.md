@@ -23,8 +23,6 @@ AdsNet/
 
 ## Neural Network Architecture
 
-![AdsNet Architecture](architecture.png)
-
 ### Overview
 
 ```
@@ -41,7 +39,7 @@ Input: atomic numbers Z, 3D coordinates, edge displacements (periodic/non-period
           │   Interaction Block     │  × num_interactions
           │                         │
           │  ┌─── Message ────────┐ │
-          │  │ sinc_RBF(d) → Linear(E, 3H)             │ │
+          │  │ GaussianRBF(d) → EdgeEmbedding(E→3H)    │ │
           │  │  × cosine_cutoff(d)                      │ │
           │  │ scalar_MLP(s_j) → Linear(H, 3H)         │ │
           │  │ hadamard → split into 3 × H gates        │ │
@@ -77,19 +75,27 @@ Output: ads_energy (eV), local_energies (eV/atom), ads_forces (eV/Å)
 
 Each edge `(i, j)` within the cutoff radius carries a scalar distance `d_ij` and a displacement vector `r_ij = R_j - R_i`. Both directions are included (`i→j` and `j→i`).
 
-**Sinc RBF** expands the scalar distance into `edge_embedding_size` basis functions:
+**Gaussian RBF** expands the scalar distance into `edge_embedding_size` learnable basis functions:
 
 ```
-φ_n(d) = sin(n·π·d / d_cut) / d,   n = 1, 2, ..., E
+φ_k(d) = exp(-w_k · (d - μ_k)²),   k = 1, 2, ..., E
 ```
 
-**Cosine cutoff** weights the basis to enforce smooth decay to zero at the boundary:
+Centers `μ_k` are initialized uniformly over `[0.5 Å, d_cut]` and widths `w_k` are initialized to `0.5 / spacing²` (SchNet-style overlap). Both are learnable parameters, allowing the basis to adapt to the distance distribution of each dataset.
+
+**EdgeEmbedding MLP** projects the RBF output into filter space:
+
+```
+edge_emb = Linear(E, 3H)(SiLU(Linear(E, E)(rbf)))   # two-layer MLP
+```
+
+**Cosine cutoff** weights the filter to enforce smooth decay to zero at the boundary:
 
 ```
 f_cut(d) = 0.5 · (cos(π·d / d_cut) + 1)   for d < d_cut, else 0
 ```
 
-The final edge embedding is `φ(d) · f_cut(d)`, shape `(N_edges, E)`.
+The final filter weight is `edge_emb · f_cut(d)`, shape `(N_edges, 3H)`.
 
 ### Interaction Block
 
@@ -98,7 +104,9 @@ Each block refines the node representations through two sequential phases.
 #### Message Phase
 
 ```
-filter_weight  = Linear(E, 3H)(edge_emb)            # shape (N_edges, 3H)
+rbf            = GaussianRBF(d)                      # shape (N_edges, E)  — learnable
+filter_weight  = EdgeEmbedding(rbf)                  # MLP: E → E → 3H, shape (N_edges, 3H)
+filter_weight *= cosine_cutoff(d)                    # smooth envelope
 scalar_out     = MLP_scalar(s_j)                     # Linear(H,H) → SiLU → Linear(H,3H)
 filter_out     = filter_weight ⊙ scalar_out[j]       # elementwise, (N_edges, 3H)
 
@@ -163,13 +171,14 @@ All `Linear` layers use **Xavier uniform** initialization; the atom embedding us
 
 The GNN model processes atomic structures via:
 
-- **Atom embedding**: Learned embeddings for each of 119 elements.
-- **Sinc RBF expansion**: Edge distances encoded as `sin(n·π·d/d_cut) / d`, providing a smooth basis for inter-atomic distances.
+- **Atom embedding**: Learned embeddings for each of 119 elements, projected by a linear layer.
+- **Gaussian RBF** (`GaussianRBF`): Learnable radial basis functions with centers initialized over `[0.5 Å, d_cut]` and SchNet-style widths. Both centers and widths are trained, allowing the basis to adapt to the bond-distance distribution.
+- **Edge embedding MLP** (`EdgeEmbedding`): Two-layer MLP (`E → E → 3H`) that projects RBF features into filter space, replacing the single linear filter layer of master.
 - **Cosine cutoff**: Behler-Parinello envelope that smoothly decays neighbor interactions to zero at `d_cut`.
 - **Interaction blocks** (repeated `num_interactions` times): Each block performs a message-passing step maintaining both scalar and vector (3D Cartesian) node features.
-  - *Message phase*: A filter network processes edge RBF features and gates information from neighboring nodes.
+  - *Message phase*: The EdgeEmbedding MLP processes edge RBF features and gates information from neighboring nodes.
   - *Update phase*: An MLP combines vector norms and scalar states to update node representations.
-- **Readout MLP**: Maps per-atom hidden states to per-atom energy contributions; the system energy is their sum.
+- **Readout MLP**: Maps per-atom scalar states to per-atom energy contributions; the system energy is their sum.
 - **Force computation**: Optionally computed as the negative gradient of the predicted energy via autograd.
 
 Key hyperparameters:
