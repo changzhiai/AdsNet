@@ -166,30 +166,67 @@ _ROLE_STYLE = {
 # Layout helper
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _star_layout(G: nx.Graph, ads_nodes: list, radius: float = 1.0) -> dict:
+    """
+    Place adsorbate atoms clustered at the center, metal neighbors
+    evenly distributed on a circle of the given radius.
+    Neighbors are sorted by angle from their real XY positions so the
+    ring order matches the physical geometry.
+    """
+    non_ads = [n for n in G.nodes() if n not in ads_nodes]
+    pos = {}
+
+    # ── adsorbate atoms: small cluster at center ─────────────────────────
+    n_ads = len(ads_nodes)
+    if n_ads == 1:
+        pos[ads_nodes[0]] = np.array([0.0, 0.0])
+    else:
+        # place them on a tiny inner circle so they don't overlap
+        gap = 0.18
+        for i, n in enumerate(ads_nodes):
+            angle = 2 * np.pi * i / n_ads
+            pos[n] = np.array([gap * np.cos(angle), gap * np.sin(angle)])
+
+    # ── metal neighbors: evenly spaced on outer circle ───────────────────
+    # sort by real XY angle so the layout reflects the physical arrangement
+    if non_ads:
+        cx = np.mean([G.nodes[n]['pos'][0] for n in non_ads])
+        cy = np.mean([G.nodes[n]['pos'][1] for n in non_ads])
+        non_ads_sorted = sorted(
+            non_ads,
+            key=lambda n: np.arctan2(G.nodes[n]['pos'][1] - cy,
+                                     G.nodes[n]['pos'][0] - cx)
+        )
+        n_nb = len(non_ads_sorted)
+        for i, n in enumerate(non_ads_sorted):
+            angle = 2 * np.pi * i / n_nb
+            pos[n] = np.array([radius * np.cos(angle), radius * np.sin(angle)])
+
+    return pos
+
+
 def _make_layout(G: nx.Graph, layout: str = 'auto') -> dict:
     """
     Choose a 2D layout that avoids node overlap.
 
-    layout='auto'   : shell layout if the graph is star-like (AdsNet graph),
+    layout='auto'   : star layout if the graph is star-like (AdsNet graph),
                       kamada otherwise (full slab graph)
-    layout='shell'  : adsorbate nodes in inner ring, neighbors in outer ring
+    layout='star'   : adsorbate at centre, neighbors on a circle (clean star)
     layout='kamada' : Kamada-Kawai weighted by 1/distance
     layout='spring' : force-directed
     layout='xy'     : project real XY coordinates
     """
+    ads = [n for n, d in G.nodes(data=True) if _is_adsorbate(d['symbol'])]
+    non_ads = [n for n in G.nodes() if n not in ads]
+
     if layout == 'auto':
-        ads = [n for n, d in G.nodes(data=True) if _is_adsorbate(d['symbol'])]
-        non_ads = [n for n in G.nodes() if n not in ads]
-        # star-like: no edges among non-adsorbate nodes
+        # star-like: no edges among non-adsorbate nodes → use star layout
         metal_edges = sum(1 for u, v in G.edges()
                           if u in non_ads and v in non_ads)
-        layout = 'shell' if metal_edges == 0 else 'kamada'
+        layout = 'star' if metal_edges == 0 else 'kamada'
 
-    if layout == 'shell':
-        ads     = [n for n, d in G.nodes(data=True) if _is_adsorbate(d['symbol'])]
-        non_ads = [n for n in G.nodes() if n not in ads]
-        # sort outer ring by angle for visual clarity
-        return nx.shell_layout(G, nlist=[ads, non_ads])
+    if layout == 'star':
+        return _star_layout(G, ads)
 
     if layout == 'kamada':
         for u, v, d in G.edges(data=True):
@@ -347,10 +384,10 @@ def draw_atoms_structure(atoms, roles: dict,
 def main():
     parser = argparse.ArgumentParser(description='Draw adsorbate graph.')
     parser.add_argument('--traj',   default=f'{HERE}/../proj_metals/dataset/images_refined.traj')
-    parser.add_argument('--idx',    type=int, default=26100, help='Structure index in traj')
-    parser.add_argument('--cutoff', type=float, default=5.5, help='Bond cutoff distance (Å)')
+    parser.add_argument('--idx',    type=int, default=26000, help='Structure index in traj')
+    parser.add_argument('--cutoff', type=float, default=5, help='Bond cutoff distance (Å)')
 
-    parser.add_argument('--layout', default='kamada', choices=['kamada','spring','xy'])
+    parser.add_argument('--layout', default='kamada', choices=['auto','star','kamada','spring','xy'])
     parser.add_argument('--out',    default=f'{HERE}/graph_style.png', help='Output file')
     parser.add_argument('--dpi',    type=int, default=300)
     parser.add_argument('--no-show', action='store_true')
@@ -384,8 +421,8 @@ def main():
     fig, axes = plt.subplots(1, 2, figsize=(9, 4.5))
     fig.patch.set_facecolor('white')
 
-    def _draw_on_ax(ax, Gg, rroles, subtitle):
-        pos2d = _make_layout(Gg, 'auto')
+    def _draw_on_ax_auto(ax, Gg, rroles, subtitle, layout='auto'):
+        pos2d = _make_layout(Gg, layout)
         nx.draw_networkx_edges(Gg, pos2d, ax=ax, edge_color='#888888', width=1.1, alpha=0.6)
         for role in ('non_neighbor', 'ads_neighbor', 'adsorbate'):
             nodes = [n for n, r in rroles.items() if r == role]
@@ -398,8 +435,8 @@ def main():
         ax.set_title(subtitle, fontsize=9, pad=5, color='#222222')
         ax.set_aspect('equal'); ax.axis('off')
 
-    _draw_on_ax(axes[0], G_full, roles_full, 'Full slab  (with non-neighbors)')
-    _draw_on_ax(axes[1], G,      roles,      'AdsNet graph  (neighbors only)')
+    _draw_on_ax_auto(axes[0], G_full, roles_full, 'Full slab  (with non-neighbors)', layout='kamada')
+    _draw_on_ax_auto(axes[1], G,      roles,      'AdsNet graph  (neighbors only)', layout='kamada')
 
     legend_items = [
         mpatches.Patch(fc='#2ECC40', ec='#1A5C28', lw=1.0, label='Adsorbate'),
