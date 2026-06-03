@@ -4,15 +4,21 @@ plot_graph_scaling.py
 Shows the computational cost saving of AdsNet's adsorbate-centered graph
 vs. a full-graph neighbor list, as a function of slab size.
 
-Method: tile the base Pt+CO slab (3×3, 27 Pt + CO) into supercells
-1×1 → 4×4 in XY. The adsorbate count stays fixed (1 CO = 2 atoms);
-only the slab grows. We count neighbor pairs for:
+Method: tile the base Pt+CO slab into supercells 1×1 → 4×4 in XY.
+The adsorbate count stays fixed (1 CO = 2 atoms); only the slab grows.
+We count neighbor pairs for:
   - Full graph  : neighbor_list over all atoms → O(N)
   - AdsNet graph: pairs centered on ads_idx only → O(1) w.r.t. slab size
+
+Usage
+-----
+    python plot_graph_scaling.py                  # default: traj idx 26000
+    python plot_graph_scaling.py --custom         # built-in Pt(111)+CO slab
+    python plot_graph_scaling.py --custom --size 3,3,4
 """
 
 import os
-import copy
+import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
@@ -21,17 +27,37 @@ from ase.io import read
 from ase.neighborlist import neighbor_list
 
 HERE   = os.path.dirname(os.path.abspath(__file__))
-TRAJ   = f'{HERE}/../proj_metals/dataset/images_refined.traj'
-IDX    = 26000
 CUTOFF = 5.5
 
+# ── CLI ───────────────────────────────────────────────────────────────────────
+parser = argparse.ArgumentParser(description='Plot AdsNet vs full-graph scaling.')
+parser.add_argument('--traj',   default=f'{HERE}/../proj_metals/dataset/images_refined.traj')
+parser.add_argument('--idx',    type=int, default=26000, help='Structure index in traj')
+parser.add_argument('--cutoff', type=float, default=CUTOFF, help='Cutoff distance (Å)')
+parser.add_argument('--custom', action='store_true', default=True,
+                    help='Use built-in Pt(111)+CO slab instead of traj file')
+parser.add_argument('--size',   default='3,3,3',
+                    help='Base slab size for --custom, e.g. "4,4,4"')
+args = parser.parse_args()
+CUTOFF = args.cutoff
+
 # ── load base structure ───────────────────────────────────────────────────────
-images = read(TRAJ, ':')
-base   = images[IDX]
-ads_idx_base = list(base.info['data']['ads_idx'])  # [27, 28] = C, O
+if args.custom:
+    import sys
+    sys.path.insert(0, HERE)
+    from draw_atoms2graph import make_pt_co_slab
+    size = tuple(int(x) for x in args.size.split(','))
+    base = make_pt_co_slab(size=size)
+    print(f"Custom Pt(111)+CO slab: {len(base)} atoms, size={size}")
+else:
+    images = read(args.traj, ':')
+    base   = images[args.idx]
+
+ads_idx_base = list(base.info['data']['ads_idx'])  # e.g. [C_idx, O_idx]
 
 # ── supercell sweep ───────────────────────────────────────────────────────────
 tiles  = [(1,1),(1,2),(2,2),(2,3),(3,3),(3,4),(4,4)]
+# tiles  = [(1,1),(1,2),(2,2),]
 
 n_atoms_list, full_pairs, ads_pairs = [], [], []
 
@@ -81,7 +107,7 @@ ax.scatter(n_atoms_list, full_pairs,
 ax.plot(n_atoms_list, ads_pairs,
         color='#2ECC40', lw=1.5, ls='-')
 ax.scatter(n_atoms_list, ads_pairs,
-           color='#2ECC40', s=55, zorder=4, label='AdsNet graph (const.)')
+           color='#2ECC40', s=55, zorder=4, label='AdsNet graph')
 
 # shade the saving region
 ax.fill_between(n_atoms_list, ads_pairs, full_pairs,

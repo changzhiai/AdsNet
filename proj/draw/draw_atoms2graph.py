@@ -34,6 +34,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
+from ase.visualize import view
 from ase.io import read
 from ase.data import chemical_symbols
 # metals by atomic number (Z=3..83 minus non-metals/metalloids — simple set)
@@ -378,6 +379,142 @@ def draw_atoms_structure(atoms, roles: dict,
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Structure view — atoms colored by per-atom predicted energy
+# ─────────────────────────────────────────────────────────────────────────────
+
+def draw_atoms_energy(atoms,
+                      local_idx,
+                      local_energies,
+                      title: str = None,
+                      figsize=(4.5, 4),
+                      cmap: str = 'RdYlBu_r',
+                      vmin: float = None,
+                      vmax: float = None,
+                      rotation: str = '0x,0y,0z',
+                      save_path: str = None,
+                      dpi: int = 300,
+                      show: bool = True) -> None:
+    """
+    Render the atomic structure with adsorbate atoms colored by their
+    per-atom predicted energy contribution (from model's local_energies).
+
+    Parameters
+    ----------
+    atoms         : ASE Atoms object
+    local_idx     : array-like, indices of adsorbate atoms (model output)
+    local_energies: array-like, per-atom energy contributions (eV)
+    cmap          : matplotlib colormap name (diverging recommended)
+    vmin/vmax     : colormap range; defaults to symmetric ±max(|E|)
+    rotation      : ASE plot_atoms rotation string, e.g. '45x,0y,0z'
+    """
+    from ase.visualize.plot import plot_atoms
+
+    local_idx      = np.asarray(local_idx).flatten()
+    local_energies = np.asarray(local_energies).flatten()
+
+    # ── colormap range ───────────────────────────────────────────────────────
+    if vmin is None or vmax is None:
+        abs_max = np.max(np.abs(local_energies))
+        vmin = vmin if vmin is not None else -abs_max
+        vmax = vmax if vmax is not None else  abs_max
+
+    norm   = plt.Normalize(vmin=vmin, vmax=vmax)
+    cm     = plt.get_cmap(cmap)
+    e_dict = dict(zip(local_idx.tolist(), local_energies.tolist()))
+
+    # ── per-atom colors ──────────────────────────────────────────────────────
+    colors = []
+    for i in range(len(atoms)):
+        if i in e_dict:
+            rgba = cm(norm(e_dict[i]))
+            colors.append(rgba)
+        else:
+            colors.append('#DDDDDD')   # slab atoms not in adsorbate set
+
+    # ── figure ───────────────────────────────────────────────────────────────
+    fig, ax = plt.subplots(figsize=figsize)
+    fig.patch.set_facecolor('white')
+
+    plot_atoms(atoms, ax=ax, colors=colors, rotation=rotation)
+    ax.set_axis_off()
+
+    if title:
+        ax.set_title(title, fontsize=9, pad=6, color='#222222')
+
+    # ── colorbar ─────────────────────────────────────────────────────────────
+    sm = plt.cm.ScalarMappable(cmap=cm, norm=norm)
+    sm.set_array([])
+    cbar = fig.colorbar(sm, ax=ax, fraction=0.035, pad=0.02, shrink=0.75)
+    cbar.set_label('Atom energy (eV)', fontsize=8)
+    cbar.ax.tick_params(labelsize=7)
+
+    # gray patch for slab
+    slab_patch = mpatches.Patch(fc='#DDDDDD', ec='#888888', lw=0.8, label='Slab')
+    ax.legend(handles=[slab_patch], loc='lower left',
+              fontsize=7, framealpha=0.85, edgecolor='#CCCCCC')
+
+    plt.tight_layout(pad=0.3)
+    if save_path:
+        fig.savefig(save_path, dpi=dpi, bbox_inches='tight', facecolor='white')
+        print(f"Saved → {save_path}")
+    if show:
+        plt.show()
+    plt.close(fig)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Custom structure builder
+# ─────────────────────────────────────────────────────────────────────────────
+
+def make_pt_co_slab(size=(4, 4, 4), vacuum=10.0):
+    """
+    Build a Pt(111) slab with one CO molecule adsorbed at the centre of the
+    top surface.
+
+    Parameters
+    ----------
+    size     : (nx, ny, nz) repetitions of the Pt FCC unit cell
+    vacuum   : vacuum thickness in Å added above the slab
+
+    Returns
+    -------
+    atoms : ASE Atoms with atoms.info['data']['ads_idx'] set to [C_idx, O_idx]
+    """
+    from ase.build import fcc111, add_adsorbate
+    from ase.constraints import FixAtoms
+
+    nx, ny, nz = size
+    slab = fcc111('Pt', size=(nx, ny, nz), vacuum=vacuum)
+
+    # fix bottom half of slab
+    z_mid = slab.positions[:, 2].mean()
+    mask  = slab.positions[:, 2] < z_mid
+    slab.set_constraint(FixAtoms(mask=mask))
+
+    # XY centre of the slab cell
+    cell = slab.get_cell()
+    cx   = (cell[0, 0] + cell[1, 0]) / 2.0
+    cy   = (cell[0, 1] + cell[1, 1]) / 2.0
+    center_xy = (cx, cy)
+
+    n_before = len(slab)
+    # add C first (height ~1.8 Å above surface), then O on top — both centred
+    add_adsorbate(slab, 'C', height=1.8, position=center_xy)
+    add_adsorbate(slab, 'O', height=3.0, position=center_xy)   # O ~1.2 Å above C
+    
+
+    c_idx = n_before          # index of C
+    o_idx = n_before + 1      # index of O
+
+    slab.info['data'] = {
+        'ads_idx':    [c_idx, o_idx],
+        'ads_energy': 0.0,           # placeholder
+    }
+
+    return slab
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # CLI
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -386,6 +523,10 @@ def main():
     parser.add_argument('--traj',   default=f'{HERE}/../proj_metals/dataset/images_refined.traj')
     parser.add_argument('--idx',    type=int, default=26000, help='Structure index in traj')
     parser.add_argument('--cutoff', type=float, default=5, help='Bond cutoff distance (Å)')
+    parser.add_argument('--custom', action='store_true', default=True,
+                        help='Use built-in Pt(111)+CO slab instead of traj file')
+    parser.add_argument('--size',   default='4,4,4',
+                        help='Slab size for --custom, e.g. "4,4,4"')
 
     parser.add_argument('--layout', default='kamada', choices=['auto','star','kamada','spring','xy'])
     parser.add_argument('--out',    default=f'{HERE}/graph_style.png', help='Output file')
@@ -393,8 +534,14 @@ def main():
     parser.add_argument('--no-show', action='store_true')
     args = parser.parse_args()
 
-    images = read(args.traj, ':')
-    atoms  = images[args.idx]
+    if args.custom:
+        size  = tuple(int(x) for x in args.size.split(','))
+        atoms = make_pt_co_slab(size=size)
+        print(f"Custom Pt(111)+CO slab: {len(atoms)} atoms, size={size}")
+    # else:
+    #     images = read(args.traj, ':')
+    #     atoms  = images[args.idx]
+    view(atoms)
 
     from collections import Counter
     syms = Counter(atoms.get_chemical_symbols())
@@ -403,8 +550,7 @@ def main():
     G = build_graph(atoms, cutoff=args.cutoff)
     roles = node_roles(G)
 
-    from ase.visualize import view
-    from ase import Atoms
+    
     involved = sorted(roles.keys())
     view(atoms[involved])
 
