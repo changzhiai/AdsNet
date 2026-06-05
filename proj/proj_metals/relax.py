@@ -21,8 +21,9 @@ def main():
     model.load_state_dict(state_dict["model"])
 
     # Load structures
-    images = read(f'{path}/images_refined.traj', ':')
-    structure_index = 100
+    # images = read(f'{path}/legacy_dataset/images_refined.traj', ':')
+    images = read(f'{path}/dataset/total.traj', ':')
+    structure_index = 2000
 
     atoms = images[structure_index]
 
@@ -38,7 +39,7 @@ def main():
         maxfun=80,
         energy_plateau_tol=1e-5,
         energy_plateau_patience=30,
-        ads_z_perturb=0.0,
+        ads_z_perturb=0.,
         bounds_from_ref=True,
     )
 
