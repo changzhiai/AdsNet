@@ -106,8 +106,6 @@ def split_data(dataset, config):
 def eval_model(model, dataloader, device, forces_weight):
     energy_running_ae = 0
     energy_running_se = 0
-    forces_running_l2_ae = 0
-    forces_running_l2_se = 0
     forces_running_c_ae = 0
     forces_running_c_se = 0
     running_loss = 0
@@ -143,30 +141,23 @@ def eval_model(model, dataloader, device, forces_weight):
         if bool(forces_weight):
             forces_targets = batch["ads_forces"].detach().cpu().numpy()
             forces_diff = forces_targets - outputs["ads_forces"]
-            forces_l2_norm = np.sqrt(np.sum(np.square(forces_diff), axis=1))
             forces_running_c_ae += np.sum(np.abs(forces_diff))
             forces_running_c_se += np.sum(np.square(forces_diff))
-            forces_running_l2_ae += np.sum(np.abs(forces_l2_norm))
-            forces_running_l2_se += np.sum(np.square(forces_l2_norm))
 
     energy_mae = energy_running_ae / count
     energy_rmse = np.sqrt(energy_running_se / count)
 
     if bool(forces_weight):
-        forces_l2_mae = forces_running_l2_ae / forces_count
-        forces_l2_rmse = np.sqrt(forces_running_l2_se / forces_count)
         forces_c_mae = forces_running_c_ae / (forces_count * 3)
         forces_c_rmse = np.sqrt(forces_running_c_se / (forces_count * 3))
     else:
-        forces_l2_mae = forces_l2_rmse = forces_c_mae = forces_c_rmse = 0
+        forces_c_mae = forces_c_rmse = 0
 
     total_loss = running_loss / count
 
     return {
         "energy_mae": energy_mae,
         "energy_rmse": energy_rmse,
-        "forces_l2_mae": forces_l2_mae,
-        "forces_l2_rmse": forces_l2_rmse,
         "forces_mae": forces_c_mae,
         "forces_rmse": forces_c_rmse,
         "sqrt(total_loss)": np.sqrt(total_loss),
