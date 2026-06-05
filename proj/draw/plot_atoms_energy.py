@@ -30,10 +30,11 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from ase.visualize import view
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_MODEL = f'{HERE}/../proj_metals/output/model.pt'
-DEFAULT_TRAJ  = f'{HERE}/../proj_metals/dataset/total.traj'
+DEFAULT_TRAJ  = f'{HERE}/../proj_metals/legacy_dataset/images_refined.traj'
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -50,7 +51,7 @@ def load_model(model_path: str):
     model = AdsNet(
         num_interactions=ck['num_layer'],
         hidden_state_size=ck['node_size'],
-        cutoff=5.5,
+        cutoff=5.,
     )
     model.load_state_dict(ck['model'])
     model.eval()
@@ -158,8 +159,8 @@ def main():
     parser = argparse.ArgumentParser(description='Plot per-atom energy from AdsNet.')
     parser.add_argument('--model',    default=DEFAULT_MODEL, help='Model checkpoint (.pt)')
     parser.add_argument('--traj',     default=DEFAULT_TRAJ)
-    parser.add_argument('--idx',      type=int, default=26000, help='Structure index in traj')
-    parser.add_argument('--custom',   action='store_true', default=False,
+    parser.add_argument('--idx',      type=int, default=23481, help='Structure index in traj')
+    parser.add_argument('--custom',   action='store_true', default=True,
                         help='Use built-in Pt(111)+CO slab instead of traj')
     parser.add_argument('--size',     default='4,4,4',
                         help='Slab size for --custom, e.g. "4,4,4"')
@@ -184,6 +185,8 @@ def main():
         images = read(args.traj, ':')
         atoms  = images[args.idx]
         print(f"Loaded structure {args.idx}: {len(atoms)} atoms")
+
+    view(atoms)
 
     # ── load model + run inference ────────────────────────────────────────────
     print(f"Loading model: {args.model}")
