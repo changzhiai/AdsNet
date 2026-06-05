@@ -50,7 +50,7 @@ def load_model(model_path: str):
     model = AdsNet(
         num_interactions=ck['num_layer'],
         hidden_state_size=ck['node_size'],
-        cutoff=ck['cutoff'],
+        cutoff=5.5,
     )
     model.load_state_dict(ck['model'])
     model.eval()
@@ -159,7 +159,7 @@ def main():
     parser.add_argument('--model',    default=DEFAULT_MODEL, help='Model checkpoint (.pt)')
     parser.add_argument('--traj',     default=DEFAULT_TRAJ)
     parser.add_argument('--idx',      type=int, default=26000, help='Structure index in traj')
-    parser.add_argument('--custom',   action='store_true',
+    parser.add_argument('--custom',   action='store_true', default=False,
                         help='Use built-in Pt(111)+CO slab instead of traj')
     parser.add_argument('--size',     default='4,4,4',
                         help='Slab size for --custom, e.g. "4,4,4"')
@@ -201,7 +201,7 @@ def main():
     print(f"Adsorbate atoms ({len(local_idx)}): {local_idx}")
     print(f"Local energies:  {local_energies}")
 
-    # ── plot ──────────────────────────────────────────────────────────────────
+    # ── plot: atoms view ─────────────────────────────────────────────────────
     plot_atoms_energy(
         atoms, local_idx, local_energies,
         E_total   = E_total,
@@ -211,6 +211,7 @@ def main():
         dpi       = args.dpi,
         show      = not args.no_show,
     )
+
 
 
 if __name__ == '__main__':

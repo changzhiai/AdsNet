@@ -49,8 +49,10 @@ def plot_fitting_joint(train_dft, train_nnp, test_dft, test_nnp, fig_name='fitti
     tr_mae, tr_rmse = mae_rmse(train_dft, train_nnp)
     te_mae, te_rmse = mae_rmse(test_dft,  test_nnp)
     ax_main.text(0.97, 0.03,
-                 f"Train  MAE={tr_mae*1000:.1f} meV  RMSE={tr_rmse*1000:.1f} meV\n"
-                 f"Test   MAE={te_mae*1000:.1f} meV  RMSE={te_rmse*1000:.1f} meV",
+                #  f"Train  MAE={tr_mae*1000:.1f} meV  RMSE={tr_rmse*1000:.1f} meV\n"
+                #  f"Test   MAE={te_mae*1000:.1f} meV  RMSE={te_rmse*1000:.1f} meV",
+                 f"Train RMSE={tr_rmse*1000:.1f} meV\n"
+                 f"Test  RMSE={te_rmse*1000:.1f} meV",
                  va='bottom', ha='right', transform=ax_main.transAxes, fontsize=8,
                  bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.75))
     ax_main.legend(loc='upper left', fontsize=8, framealpha=0.75)
@@ -79,7 +81,7 @@ def plot_fitting_joint(train_dft, train_nnp, test_dft, test_nnp, fig_name='fitti
     for spine in ['top', 'right', 'bottom']:
         ax_right.spines[spine].set_visible(False)
 
-    fig.savefig(f'{path}/output/{fig_name}', dpi=150, bbox_inches='tight')
+    fig.savefig(f'{path}/output/{fig_name}', dpi=300, bbox_inches='tight')
     plt.close()
     print(f'Saved figure to {path}/output/{fig_name}')
 
@@ -119,52 +121,71 @@ def plot_fitting(train_dft, train_nnp, test_dft, test_nnp, fig_name='fitting.png
     ax.legend(loc='upper left', fontsize=9)
     ax.set_aspect('equal')
     plt.tight_layout()
-    fig.savefig(f'{path}/output/{fig_name}', dpi=150)
+    fig.savefig(f'{path}/output/{fig_name}', dpi=300)
     plt.close()
     print(f'Saved figure to {path}/output/{fig_name}')
 
 
 def main():
-    state_dict = torch.load(f'{path}/output/model.pt', map_location='cpu')
-    model = AdsNet(
-        num_interactions=state_dict["num_layer"],
-        hidden_state_size=state_dict["node_size"],
-        cutoff=state_dict["cutoff"],
-    )
-    model.load_state_dict(state_dict["model"])
-    model.eval()
+    import argparse
+    parser = argparse.ArgumentParser(description='Predict and plot AdsNet results.')
+    parser.add_argument('--csv', default=True,
+                        help='Skip inference and load predictions from an existing CSV '
+                             '(must have columns: split, dft_energies, nnp_energies)')
+    args = parser.parse_args()
 
-    calc = MLCalculator(model)
+    csv_path = f'{path}/output/predict/predict.csv'
 
-    def predict_set(traj_path):
-        images = read(traj_path, ':')
-        formulas, dft_energies, nnp_energies = [], [], []
-        for i, atoms in enumerate(images):
-            print(f'Predicting {i}: {atoms.info["id"]}')
-            formulas.append(atoms.get_chemical_formula(mode='hill'))
-            dft_energies.append(atoms.info['data']['ads_energy'])
-            nnp_energies.append(calc.get_binding_energy(atoms))
-        return formulas, dft_energies, nnp_energies
+    if args.csv:
+        print(f'Loading predictions from {csv_path}...')
+        df = pd.read_csv(csv_path)
+        train = df[df['split'] == 'train']
+        test  = df[df['split'] == 'test']
+        train_dft = train['dft_energies'].tolist()
+        train_nnp = train['nnp_energies'].tolist()
+        test_dft  = test['dft_energies'].tolist()
+        test_nnp  = test['nnp_energies'].tolist()
+        print(f'Train: {len(train_dft)} structures  |  Test: {len(test_dft)} structures')
+    else:
+        state_dict = torch.load(f'{path}/output/model.pt', map_location='cpu')
+        model = AdsNet(
+            num_interactions=state_dict["num_layer"],
+            hidden_state_size=state_dict["node_size"],
+            cutoff=state_dict["cutoff"],
+        )
+        model.load_state_dict(state_dict["model"])
+        model.eval()
 
-    train_formulas, train_dft, train_nnp = predict_set(f'{path}/dataset/train.traj')
-    test_formulas,  test_dft,  test_nnp  = predict_set(f'{path}/dataset/test.traj')
-    print(f'Train: {len(train_dft)} structures  |  Test: {len(test_dft)} structures')
+        calc = MLCalculator(model)
+
+        def predict_set(traj_path):
+            images = read(traj_path, ':')
+            formulas, dft_energies, nnp_energies = [], [], []
+            for i, atoms in enumerate(images):
+                print(f'Predicting {i}: {atoms.info["id"]}')
+                formulas.append(atoms.get_chemical_formula(mode='hill'))
+                dft_energies.append(atoms.info['data']['ads_energy'])
+                nnp_energies.append(calc.get_binding_energy(atoms))
+            return formulas, dft_energies, nnp_energies
+
+        train_formulas, train_dft, train_nnp = predict_set(f'{path}/dataset/train.traj')
+        test_formulas,  test_dft,  test_nnp  = predict_set(f'{path}/dataset/test.traj')
+        print(f'Train: {len(train_dft)} structures  |  Test: {len(test_dft)} structures')
+
+        df = pd.DataFrame({
+            'split':        ['train'] * len(train_dft) + ['test'] * len(test_dft),
+            'formula':      train_formulas + test_formulas,
+            'dft_energies': train_dft + test_dft,
+            'nnp_energies': train_nnp + test_nnp,
+        })
+        df.to_csv(csv_path, index=False)
+        print(f'Saved predictions to {csv_path}')
 
     for label, dft, nnp in [('Train', train_dft, train_nnp), ('Test', test_dft, test_nnp)]:
         dft_a, nnp_a = np.array(dft), np.array(nnp)
         mae  = np.mean(np.abs(dft_a - nnp_a))
         rmse = np.sqrt(np.mean((dft_a - nnp_a) ** 2))
         print(f'{label}  MAE: {mae*1000:.1f} meV  RMSE: {rmse*1000:.1f} meV')
-
-    df = pd.DataFrame({
-        'split':        ['train'] * len(train_dft) + ['test'] * len(test_dft),
-        'formula':      train_formulas + test_formulas,
-        'dft_energies': train_dft + test_dft,
-        'nnp_energies': train_nnp + test_nnp,
-    })
-    csv_path = f'{path}/output/predict.csv'
-    df.to_csv(csv_path, index=False)
-    print(f'Saved predictions to {csv_path}')
 
     plot_fitting(train_dft, train_nnp, test_dft, test_nnp)
     plot_fitting_joint(train_dft, train_nnp, test_dft, test_nnp)

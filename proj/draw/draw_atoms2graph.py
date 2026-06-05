@@ -527,7 +527,6 @@ def main():
                         help='Use built-in Pt(111)+CO slab instead of traj file')
     parser.add_argument('--size',   default='4,4,4',
                         help='Slab size for --custom, e.g. "4,4,4"')
-
     parser.add_argument('--layout', default='kamada', choices=['auto','star','kamada','spring','xy'])
     parser.add_argument('--out',    default=f'{HERE}/graph_style.png', help='Output file')
     parser.add_argument('--dpi',    type=int, default=300)

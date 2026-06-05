@@ -82,7 +82,7 @@ def plot_fitting_joint(train_dft, train_nnp, test_dft, test_nnp, fig_name='fitti
     for spine in ['top', 'right', 'bottom']:
         ax_right.spines[spine].set_visible(False)
 
-    fig.savefig(f'{path}/output/{fig_name}', dpi=150, bbox_inches='tight')
+    fig.savefig(f'{path}/output/{fig_name}', dpi=300, bbox_inches='tight')
     plt.show()
     print(f'Saved figure to {path}/output/{fig_name}')
 
@@ -123,7 +123,7 @@ def plot_fitting(train_dft, train_nnp, test_dft, test_nnp, fig_name='fitting.png
     ax.legend(loc='upper left', fontsize=9)
     ax.set_aspect('equal')
     plt.tight_layout()
-    fig.savefig(f'{path}/output/{fig_name}', dpi=150)
+    fig.savefig(f'{path}/output/{fig_name}', dpi=300)
     plt.show()
     print(f'Saved figure to {path}/output/{fig_name}')
 

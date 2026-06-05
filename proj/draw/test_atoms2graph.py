@@ -202,7 +202,7 @@ def plot_graph_3d(G: nx.Graph, title: str = "Geometry Graph",
     plt.tight_layout()
 
     if save_path:
-        plt.savefig(save_path, dpi=150)
+        plt.savefig(save_path, dpi=300)
         print(f"Plot saved → {save_path}")
     plt.show()
 
@@ -267,7 +267,7 @@ def plot_graph_2d(G: nx.Graph, title: str = "Geometry Graph (2D)",
     plt.tight_layout()
 
     if save_path:
-        plt.savefig(save_path, dpi=150)
+        plt.savefig(save_path, dpi=300)
         print(f"Plot saved → {save_path}")
     plt.show()
 
@@ -283,7 +283,7 @@ if __name__ == "__main__":
     # ── Example 1: small molecule ────────────────────────────────────────────
     # print("\n── Example 1: Ethanol (C2H5OH) ─────────────────────────────────")
     # atoms = molecule("CH3CH2OH")
-    images = read(f'{path}/../proj_metals/dataset/images_refined.traj', ':')
+    images = read(f'{path}/../proj_metals/dataset/total.traj', ':')
     structure_index = 100
     atoms = images[structure_index]
     G = atoms_to_graph(atoms, scale_factor=1.1)
@@ -333,7 +333,7 @@ if __name__ == "__main__":
         ax.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
 
     plt.tight_layout()
-    plt.savefig(f"{path}/geometry_graph_2d.png", dpi=150)
+    plt.savefig(f"{path}/geometry_graph_2d.png", dpi=300)
     print("2D plot saved → geometry_graph_2d.png")
     plt.show()
 

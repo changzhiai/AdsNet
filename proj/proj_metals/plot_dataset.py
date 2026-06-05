@@ -9,7 +9,7 @@ from ase.io import read
 from collections import defaultdict
 
 path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-traj_path = f'{path}/dataset/images_refined.traj'
+traj_path = f'{path}/dataset/total.traj'
 out_dir   = f'{path}/dataset'
 
 # ── load trajectory into a DataFrame ─────────────────────────────────────────
@@ -31,18 +31,19 @@ df = pd.DataFrame(rows)
 print(f'Loaded {len(df)} structures')
 
 # keep only the 4 primary adsorbates
+# 'ads' is built from sorted unique symbols: H→'H', CO→'CO', OH→'HO', HOCO→'CHO'
 primary_ads = ['H', 'CO', 'HO', 'CHO']
 df_main = df[df['adsorbate'].isin(primary_ads)].copy()
-ads_labels = {'H': 'H', 'CO': 'CO', 'HO': 'OH', 'CHO': 'HOCO'}
+ads_labels = {'H': 'H*', 'CO': 'CO*', 'HO': 'OH*', 'CHO': 'HOCO*'}
 df_main['adsorbate'] = df_main['adsorbate'].map(ads_labels)
 
 METALS = ['Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn',
-          'Y',  'Zr', 'Nb', 'Mo', 'Ru', 'Rh', 'Ag', 'Cd',
+          'Y',  'Zr', 'Nb', 'Mo', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd',
           'Hf', 'Ta', 'W',  'Re', 'Ir', 'Pt', 'Au']
-ADS_ORDER = ['H', 'CO', 'OH', 'HOCO']
+ADS_ORDER = ['H*', 'CO*', 'OH*', 'HOCO*']
 
 
-# ── Figure 1: heatmap of mean binding energy ─────────────────────────────────
+# ── Figure 1: heatmap of min binding energy ─────────────────────────────────
 pivot_min = df_main.groupby(['metal', 'adsorbate'])['energy'].min().unstack()
 pivot_min = pivot_min.reindex(index=METALS, columns=ADS_ORDER)
 
@@ -58,7 +59,6 @@ ax.set_yticks(range(len(METALS)))
 ax.set_yticklabels(METALS, fontsize=9)
 ax.set_xlabel('Adsorbate', fontsize=11)
 ax.set_ylabel('Metal', fontsize=11)
-ax.set_title('Minimum Adsorption Energy (eV)', fontsize=12)
 
 # annotate cells
 for i, metal in enumerate(METALS):
@@ -70,13 +70,13 @@ for i, metal in enumerate(METALS):
                     fontsize=7, color=color)
 
 plt.tight_layout()
-fig.savefig(f'{out_dir}/db_heatmap.png', dpi=150, bbox_inches='tight')
+fig.savefig(f'{out_dir}/db_heatmap.png', dpi=300, bbox_inches='tight')
 print(f'Saved {out_dir}/db_heatmap.png')
 plt.close()
 
 
 # ── Figure 2: violin plot — energy distribution per adsorbate ────────────────
-fig, ax = plt.subplots(figsize=(7, 4))
+fig, ax = plt.subplots(figsize=(10, 4.5))
 data_by_ads = [df_main[df_main['adsorbate'] == ads]['energy'].values
                for ads in ADS_ORDER]
 parts = ax.violinplot(data_by_ads, positions=range(len(ADS_ORDER)),
@@ -88,10 +88,9 @@ ax.set_xticks(range(len(ADS_ORDER)))
 ax.set_xticklabels(ADS_ORDER, fontsize=11)
 ax.set_ylabel('$E_{ads}$ (eV)', fontsize=11)
 ax.set_xlabel('Adsorbate', fontsize=11)
-ax.set_title('Binding Energy Distribution per Adsorbate', fontsize=12)
 ax.axhline(0, color='k', lw=0.8, ls='--')
 plt.tight_layout()
-fig.savefig(f'{out_dir}/db_violin.png', dpi=150, bbox_inches='tight')
+fig.savefig(f'{out_dir}/db_violin.png', dpi=300, bbox_inches='tight')
 print(f'Saved {out_dir}/db_violin.png')
 plt.close()
 
@@ -100,7 +99,7 @@ plt.close()
 counts = df_main.groupby(['metal', 'adsorbate']).size().unstack(fill_value=0)
 counts = counts.reindex(index=METALS, columns=ADS_ORDER, fill_value=0)
 
-fig, ax = plt.subplots(figsize=(10, 4))
+fig, ax = plt.subplots(figsize=(10, 4.5))
 bottom = np.zeros(len(METALS))
 colors = ['#6096BA', '#E07A5F', '#81B29A', '#F2CC8F']
 for ads, color in zip(ADS_ORDER, colors):
@@ -111,10 +110,9 @@ for ads, color in zip(ADS_ORDER, colors):
 ax.set_xticks(range(len(METALS)))
 ax.set_xticklabels(METALS, rotation=45, ha='right', fontsize=9)
 ax.set_ylabel('Number of structures', fontsize=11)
-ax.set_title('Database Size per Metal', fontsize=12)
 ax.legend(title='Adsorbate', fontsize=9, title_fontsize=9)
 plt.tight_layout()
-fig.savefig(f'{out_dir}/db_counts.png', dpi=150, bbox_inches='tight')
+fig.savefig(f'{out_dir}/db_counts.png', dpi=300, bbox_inches='tight')
 print(f'Saved {out_dir}/db_counts.png')
 plt.close()
 
@@ -145,7 +143,6 @@ ax.set_xlim(0, 18.5)
 ax.set_ylim(0, 7.5)
 ax.invert_yaxis()
 ax.axis('off')
-ax.set_title('Number of Structures per Element', fontsize=13, pad=10)
 
 for elem, (row, col) in PTABLE.items():
     x, y = col - 1, row - 1
@@ -168,6 +165,6 @@ cbar = fig.colorbar(sm, ax=ax, fraction=0.015, pad=0.01, aspect=20)
 cbar.set_label('N structures', fontsize=9)
 
 plt.tight_layout()
-fig.savefig(f'{out_dir}/db_periodic_table.png', dpi=150, bbox_inches='tight')
+fig.savefig(f'{out_dir}/db_periodic_table.png', dpi=300, bbox_inches='tight')
 print(f'Saved {out_dir}/db_periodic_table.png')
 plt.close()

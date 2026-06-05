@@ -79,7 +79,7 @@ def plot_fitting_joint(train_dft, train_nnp, test_dft, test_nnp, fig_name='fitti
     for spine in ['top', 'right', 'bottom']:
         ax_right.spines[spine].set_visible(False)
 
-    fig.savefig(f'{path}/{fig_name}', dpi=150, bbox_inches='tight')
+    fig.savefig(f'{path}/{fig_name}', dpi=300, bbox_inches='tight')
     plt.close()
     print(f'Saved figure to {path}/{fig_name}')
 
@@ -119,7 +119,7 @@ def plot_fitting(train_dft, train_nnp, test_dft, test_nnp, fig_name='fitting.png
     ax.legend(loc='upper left', fontsize=9)
     ax.set_aspect('equal')
     plt.tight_layout()
-    fig.savefig(f'{path}/{fig_name}', dpi=150)
+    fig.savefig(f'{path}/{fig_name}', dpi=300)
     plt.close()
     print(f'Saved figure to {path}/{fig_name}')
 
@@ -147,7 +147,7 @@ def main():
         return formulas, dft_energies, nnp_energies
 
     train_formulas, train_dft, train_nnp = predict_set('/pscratch/sd/c/changzhi/test/adsnet/forces/test/db/dataset_refine2/train.traj')
-    test_formulas,  test_dft,  test_nnp  = predict_set('/pscratch/sd/c/changzhi/test/adsnet/forces/test/db/dataset_refine2/test_new.traj')
+    test_formulas,  test_dft,  test_nnp  = predict_set('/pscratch/sd/c/changzhi/test/adsnet/forces/test/db/dataset_refine2/test.traj')
     print(f'Train: {len(train_dft)} structures  |  Test: {len(test_dft)} structures')
 
     for label, dft, nnp in [('Train', train_dft, train_nnp), ('Test', test_dft, test_nnp)]:
