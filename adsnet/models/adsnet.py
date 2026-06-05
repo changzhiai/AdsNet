@@ -24,7 +24,8 @@ class GaussianRBF(nn.Module):
         self.widths = nn.Parameter(torch.full((num_rbf,), 0.5 / spacing.item() ** 2))
 
     def forward(self, edge_dist: torch.Tensor):
-        return torch.exp(-self.widths * (edge_dist.unsqueeze(-1) - self.centers) ** 2)
+        rbf = torch.exp(-self.widths * (edge_dist.unsqueeze(-1) - self.centers) ** 2)
+        return rbf / edge_dist.clamp(min=1e-6).unsqueeze(-1)
 
 
 class EdgeEmbedding(nn.Module):
