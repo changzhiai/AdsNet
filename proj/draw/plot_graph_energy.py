@@ -48,8 +48,8 @@ def load_model(model_path: str):
 
     ck = torch.load(model_path, map_location='cpu')
     model = AdsNet(
-        num_interactions=ck['num_layer'],
-        hidden_state_size=ck['node_size'],
+        num_layers=ck['num_layers'],
+        num_channels=ck['num_channels'],
         cutoff=ck['cutoff'],
     )
     model.load_state_dict(ck['model'])

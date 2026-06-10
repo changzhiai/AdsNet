@@ -9,8 +9,8 @@ path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 def main():
     trainer = Trainer(
         config={
-            "node_size": 128,
-            "num_interactions": 3,
+            "num_channels": 128,
+            "num_layers": 3,
             "cutoff": 5.5,
             "batch_size": 12,
             "initial_lr": 1e-4,

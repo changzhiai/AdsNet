@@ -127,8 +127,8 @@ def plot_fitting(train_dft, train_nnp, test_dft, test_nnp, fig_name='fitting.png
 def main():
     state_dict = torch.load(f'{path}/../model.pt', map_location='cuda')
     model = AdsNet(
-        num_interactions=state_dict["num_layer"],
-        hidden_state_size=state_dict["node_size"],
+        num_layers=state_dict["num_layers"],
+        num_channels=state_dict["num_channels"],
         cutoff=state_dict["cutoff"],
     )
     model.load_state_dict(state_dict["model"])

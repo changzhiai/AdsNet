@@ -15,8 +15,8 @@ from adsnet.models import AdsNet
 
 DEFAULT_CONFIG = {
     # Model parameters
-    "node_size": 128,
-    "num_interactions": 3,
+    "num_channels": 128,
+    "num_layers": 3,
     "cutoff": 5.5,
     # Training parameters
     "device": None,
@@ -254,8 +254,8 @@ class Trainer:
 
         # Model
         net = AdsNet(
-            num_interactions=config["num_interactions"],
-            hidden_state_size=config["node_size"],
+            num_layers=config["num_layers"],
+            num_channels=config["num_channels"],
             cutoff=config["cutoff"],
             compute_forces=bool(config["forces_weight"]),
         )
@@ -268,8 +268,8 @@ class Trainer:
         # Configuration summary
         logging.info("---------------- Configuration Settings ----------------")
         logging.info(f"Model Type (model): {self.model_type}")
-        logging.info(f"Node Size (node_size): {config['node_size']}")
-        logging.info(f"Number of Interactions (num_interactions): {config['num_interactions']}")
+        logging.info(f"Number of Channels (num_channels): {config['num_channels']}")
+        logging.info(f"Number of Layers (num_layers): {config['num_layers']}")
         logging.info(f"Cutoff Radius (cutoff): {config['cutoff']}")
         logging.info(f"Batch Size (batch_size): {config['batch_size']}")
         logging.info(f"Learning Rate (initial_lr): {config['initial_lr']}")
@@ -384,8 +384,8 @@ class Trainer:
                                 "scheduler": scheduler.state_dict(),
                                 "step": step,
                                 "best_val_loss": best_val_loss,
-                                "node_size": config["node_size"],
-                                "num_layer": config["num_interactions"],
+                                "num_channels": config["num_channels"],
+                                "num_layers": config["num_layers"],
                                 "cutoff": config["cutoff"],
                             },
                             os.path.join(config["output_dir"], config["output_model"]),
@@ -408,8 +408,8 @@ class Trainer:
                             "scheduler": scheduler.state_dict(),
                             "step": step,
                             "best_val_loss": best_val_loss,
-                            "node_size": config["node_size"],
-                            "num_layer": config["num_interactions"],
+                            "num_channels": config["num_channels"],
+                            "num_layers": config["num_layers"],
                             "cutoff": config["cutoff"],
                         },
                         os.path.join(config["output_dir"], "exit_" + config["output_model"]),

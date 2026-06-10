@@ -14,8 +14,8 @@ def main():
     # Load model
     state_dict = torch.load(f'{path}/output/model.pt', map_location='cpu')
     model = AdsNet(
-        num_interactions=state_dict["num_layer"],
-        hidden_state_size=state_dict["node_size"],
+        num_layers=state_dict["num_layers"],
+        num_channels=state_dict["num_channels"],
         cutoff=state_dict["cutoff"],
         compute_forces=True,
     )

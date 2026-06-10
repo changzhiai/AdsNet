@@ -163,8 +163,8 @@ def main(read_csv=False):
     print(f'loading: {path}/{args.load_model}')
     state_dict = torch.load(f'{path}/{args.load_model}', map_location=torch.device(args.device)) 
     model = AdsNet(
-        num_interactions=state_dict["num_layer"],
-        hidden_state_size=state_dict["node_size"],
+        num_layers=state_dict["num_layers"],
+        num_channels=state_dict["num_channels"],
         cutoff=state_dict["cutoff"],
         compute_forces = bool(args.forces_weight),
     )

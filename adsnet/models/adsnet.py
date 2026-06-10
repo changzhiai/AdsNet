@@ -15,10 +15,10 @@ def cosine_cutoff(edge_dist: torch.Tensor, cutoff: float):
 
 class SincRBF(nn.Module):
     """Fixed sinc radial basis functions: sin(n*pi*d/d_cut) / d"""
-    def __init__(self, num_rbf: int, cutoff: float):
+    def __init__(self, num_basis: int, cutoff: float):
         super().__init__()
         self.cutoff = cutoff
-        self.register_buffer('n', torch.arange(1, num_rbf + 1).float())
+        self.register_buffer('n', torch.arange(1, num_basis + 1).float())
 
     def forward(self, edge_dist: torch.Tensor):
         return torch.sin(edge_dist.unsqueeze(-1) * self.n * torch.pi / self.cutoff) / edge_dist.clamp(min=1e-6).unsqueeze(-1)
@@ -26,13 +26,13 @@ class SincRBF(nn.Module):
 
 class GaussianRBF(nn.Module):
     """Learnable Gaussian radial basis functions."""
-    def __init__(self, num_rbf: int, cutoff: float):
+    def __init__(self, num_basis: int, cutoff: float):
         super().__init__()
-        centers = torch.linspace(0.5, cutoff, num_rbf)
+        centers = torch.linspace(0.5, cutoff, num_basis)
         self.register_buffer('initial_centers', centers.clone())
         self.centers = nn.Parameter(centers)
         spacing = centers[1] - centers[0]
-        self.widths = nn.Parameter(torch.full((num_rbf,), 0.5 / spacing.item() ** 2))
+        self.widths = nn.Parameter(torch.full((num_basis,), 0.5 / spacing.item() ** 2))
 
     def forward(self, edge_dist: torch.Tensor):
         return torch.exp(-self.widths * (edge_dist.unsqueeze(-1) - self.centers) ** 2)
@@ -40,16 +40,16 @@ class GaussianRBF(nn.Module):
 
 class EdgeEmbedding(nn.Module):
     """Embed radial basis into filter space: linear or two-layer MLP."""
-    def __init__(self, edge_size: int, output_size: int, use_mlp: bool = True):
+    def __init__(self, num_basis: int, num_channels: int, edge_embed: str = 'linear'):
         super().__init__()
-        if use_mlp:
+        if edge_embed == 'mlp':
             self.net = nn.Sequential(
-                nn.Linear(edge_size, output_size),
+                nn.Linear(num_basis, num_channels),
                 nn.SiLU(),
-                nn.Linear(output_size, output_size),
+                nn.Linear(num_channels, num_channels),
             )
         else:
-            self.net = nn.Linear(edge_size, output_size)
+            self.net = nn.Linear(num_basis, num_channels)
 
     def forward(self, rbf):
         return self.net(rbf)
@@ -57,27 +57,27 @@ class EdgeEmbedding(nn.Module):
 
 class Interaction(nn.Module):
     """Interaction block: message passing + node update with layer norm."""
-    def __init__(self, node_size: int, edge_size: int, cutoff: float, edge_mlp: bool = True):
+    def __init__(self, num_channels: int, num_basis: int, cutoff: float, edge_embed: str = 'linear'):
         super().__init__()
 
-        self.node_size = node_size
+        self.num_channels = num_channels
         self.cutoff = cutoff
 
         # Message
         self.scalar_message_mlp = nn.Sequential(
-            nn.Linear(node_size, node_size),
+            nn.Linear(num_channels, num_channels),
             nn.SiLU(),
-            nn.Linear(node_size, node_size * 3),
+            nn.Linear(num_channels, num_channels * 3),
         )
-        self.edge_embedding = EdgeEmbedding(edge_size, node_size * 3, use_mlp=edge_mlp)
+        self.edge_embedding = EdgeEmbedding(num_basis, num_channels * 3, edge_embed=edge_embed)
 
         # Update
-        self.update_U = nn.Linear(node_size, node_size)
-        self.update_V = nn.Linear(node_size, node_size)
+        self.update_U = nn.Linear(num_channels, num_channels)
+        self.update_V = nn.Linear(num_channels, num_channels)
         self.update_mlp = nn.Sequential(
-            nn.Linear(node_size * 2, node_size),
+            nn.Linear(num_channels * 2, num_channels),
             nn.SiLU(),
-            nn.Linear(node_size, node_size * 3),
+            nn.Linear(num_channels, num_channels * 3),
         )
 
     def forward(self, node_scalar, node_vector, ads_idx_pairs, ads_edge_diff, edge_dist, rbf):
@@ -89,7 +89,7 @@ class Interaction(nn.Module):
         filter_out = filter_weight * scalar_out[ads_idx_pairs[:, 1]]
 
         gate_state_vector, gate_edge_vector, message_scalar = torch.split(
-            filter_out, self.node_size, dim=1,
+            filter_out, self.num_channels, dim=1,
         )
 
         message_vector = node_vector[ads_idx_pairs[:, 1]] * gate_state_vector.unsqueeze(1)
@@ -127,45 +127,46 @@ class AdsNet(nn.Module):
     """AdsNet: Adsorption Network: GNN message passing model for adsorption energy prediction."""
     def __init__(
         self,
-        num_interactions,
-        hidden_state_size,
+        num_layers,
+        num_channels,
         cutoff,
-        edge_embedding_size=20,
+        num_basis=20,
         compute_forces=False,
-        rbf_type='sinc',
-        edge_mlp=True,
         **kwargs,
     ):
         super().__init__()
 
+        rbf_type = kwargs.get('rbf_type', 'sinc')
+        edge_embed = kwargs.get('edge_embed', 'linear')
+
         num_embedding = 119
         self.cutoff = cutoff
-        self.num_interactions = num_interactions
-        self.hidden_state_size = hidden_state_size
-        self.edge_embedding_size = edge_embedding_size
+        self.num_layers = num_layers
+        self.num_channels = num_channels
+        self.num_basis = num_basis
         self.compute_forces = compute_forces
 
-        self.atom_embedding = nn.Embedding(num_embedding, hidden_state_size)
-        self.node_projection = nn.Linear(hidden_state_size, hidden_state_size)
+        self.atom_embedding = nn.Embedding(num_embedding, num_channels)
+        self.node_projection = nn.Linear(num_channels, num_channels)
 
         if rbf_type == 'gaussian':
-            self.rbf = GaussianRBF(edge_embedding_size, cutoff)
+            self.rbf = GaussianRBF(num_basis, cutoff)
         elif rbf_type == 'sinc':
-            self.rbf = SincRBF(edge_embedding_size, cutoff)
+            self.rbf = SincRBF(num_basis, cutoff)
         else:
             raise ValueError(f"Unknown rbf_type '{rbf_type}'. Choose 'sinc' or 'gaussian'.")
 
         self.interactions = nn.ModuleList(
             [
-                Interaction(hidden_state_size, edge_embedding_size, cutoff, edge_mlp=edge_mlp)
-                for _ in range(num_interactions)
+                Interaction(num_channels, num_basis, cutoff, edge_embed=edge_embed)
+                for _ in range(num_layers)
             ]
         )
 
         self.readout_mlp = nn.Sequential(
-            nn.Linear(hidden_state_size, hidden_state_size),
+            nn.Linear(num_channels, num_channels),
             nn.SiLU(),
-            nn.Linear(hidden_state_size, 1),
+            nn.Linear(num_channels, 1),
         )
 
         self._init_weights()
@@ -223,7 +224,7 @@ class AdsNet(nn.Module):
         node_scalar = self.node_projection(all_scalar[local_idx])
 
         node_vector = torch.zeros(
-            (node_scalar.shape[0], 3, self.hidden_state_size),
+            (node_scalar.shape[0], 3, self.num_channels),
             device=coords.device, dtype=coords.dtype,
         )
 

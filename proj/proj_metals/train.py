@@ -7,8 +7,8 @@ trainer = Trainer(
     model="adsnet",
     config={
         "device": "cpu", 
-        "node_size": 128,
-        "num_interactions": 3,
+        "num_channels": 128,
+        "num_layers": 3,
         "cutoff": 5.5,
         "batch_size": 12,
         "initial_lr": 1e-4,

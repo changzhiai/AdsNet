@@ -14,8 +14,8 @@ out_path   = f'{path}/output/predict/outliers.csv'
 
 state_dict = torch.load(model_path, map_location='cpu')
 model = AdsNet(
-    num_interactions=state_dict['num_layer'],
-    hidden_state_size=state_dict['node_size'],
+    num_layers=state_dict['num_layers'],
+    num_channels=state_dict['num_channels'],
     cutoff=state_dict['cutoff'],
 )
 model.load_state_dict(state_dict['model'])
