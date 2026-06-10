@@ -39,22 +39,25 @@ class GaussianRBF(nn.Module):
 
 
 class EdgeEmbedding(nn.Module):
-    """Two-layer MLP to embed radial basis into filter space."""
-    def __init__(self, edge_size: int, output_size: int):
+    """Embed radial basis into filter space: linear or two-layer MLP."""
+    def __init__(self, edge_size: int, output_size: int, use_mlp: bool = True):
         super().__init__()
-        self.mlp = nn.Sequential(
-            nn.Linear(edge_size, output_size),
-            nn.SiLU(),
-            nn.Linear(output_size, output_size),
-        )
+        if use_mlp:
+            self.net = nn.Sequential(
+                nn.Linear(edge_size, output_size),
+                nn.SiLU(),
+                nn.Linear(output_size, output_size),
+            )
+        else:
+            self.net = nn.Linear(edge_size, output_size)
 
     def forward(self, rbf):
-        return self.mlp(rbf)
+        return self.net(rbf)
 
 
 class Interaction(nn.Module):
     """Interaction block: message passing + node update with layer norm."""
-    def __init__(self, node_size: int, edge_size: int, cutoff: float):
+    def __init__(self, node_size: int, edge_size: int, cutoff: float, edge_mlp: bool = True):
         super().__init__()
 
         self.node_size = node_size
@@ -66,7 +69,7 @@ class Interaction(nn.Module):
             nn.SiLU(),
             nn.Linear(node_size, node_size * 3),
         )
-        self.edge_embedding = EdgeEmbedding(edge_size, node_size * 3)
+        self.edge_embedding = EdgeEmbedding(edge_size, node_size * 3, use_mlp=edge_mlp)
 
         # Update
         self.update_U = nn.Linear(node_size, node_size)
@@ -130,6 +133,7 @@ class AdsNet(nn.Module):
         edge_embedding_size=20,
         compute_forces=False,
         rbf_type='sinc',
+        edge_mlp=True,
         **kwargs,
     ):
         super().__init__()
@@ -153,7 +157,7 @@ class AdsNet(nn.Module):
 
         self.interactions = nn.ModuleList(
             [
-                Interaction(hidden_state_size, edge_embedding_size, cutoff)
+                Interaction(hidden_state_size, edge_embedding_size, cutoff, edge_mlp=edge_mlp)
                 for _ in range(num_interactions)
             ]
         )
