@@ -13,6 +13,17 @@ def cosine_cutoff(edge_dist: torch.Tensor, cutoff: float):
     )
 
 
+class SincRBF(nn.Module):
+    """Fixed sinc radial basis functions: sin(n*pi*d/d_cut) / d"""
+    def __init__(self, num_rbf: int, cutoff: float):
+        super().__init__()
+        self.cutoff = cutoff
+        self.register_buffer('n', torch.arange(1, num_rbf + 1).float())
+
+    def forward(self, edge_dist: torch.Tensor):
+        return torch.sin(edge_dist.unsqueeze(-1) * self.n * torch.pi / self.cutoff) / edge_dist.clamp(min=1e-6).unsqueeze(-1)
+
+
 class GaussianRBF(nn.Module):
     """Learnable Gaussian radial basis functions."""
     def __init__(self, num_rbf: int, cutoff: float):
@@ -24,8 +35,7 @@ class GaussianRBF(nn.Module):
         self.widths = nn.Parameter(torch.full((num_rbf,), 0.5 / spacing.item() ** 2))
 
     def forward(self, edge_dist: torch.Tensor):
-        rbf = torch.exp(-self.widths * (edge_dist.unsqueeze(-1) - self.centers) ** 2)
-        return rbf / edge_dist.clamp(min=1e-6).unsqueeze(-1)
+        return torch.exp(-self.widths * (edge_dist.unsqueeze(-1) - self.centers) ** 2)
 
 
 class EdgeEmbedding(nn.Module):
@@ -119,6 +129,7 @@ class AdsNet(nn.Module):
         cutoff,
         edge_embedding_size=20,
         compute_forces=False,
+        rbf_type='sinc',
         **kwargs,
     ):
         super().__init__()
@@ -133,8 +144,12 @@ class AdsNet(nn.Module):
         self.atom_embedding = nn.Embedding(num_embedding, hidden_state_size)
         self.node_projection = nn.Linear(hidden_state_size, hidden_state_size)
 
-        # Learnable radial basis
-        self.rbf = GaussianRBF(edge_embedding_size, cutoff)
+        if rbf_type == 'gaussian':
+            self.rbf = GaussianRBF(edge_embedding_size, cutoff)
+        elif rbf_type == 'sinc':
+            self.rbf = SincRBF(edge_embedding_size, cutoff)
+        else:
+            raise ValueError(f"Unknown rbf_type '{rbf_type}'. Choose 'sinc' or 'gaussian'.")
 
         self.interactions = nn.ModuleList(
             [
