@@ -4,7 +4,10 @@ from torch import nn
 
 def cosine_cutoff(edge_dist: torch.Tensor, cutoff: float):
     """
-    Cosine Behler-Parinello cutoff: f(d) = 0.5*(cos(pi*d/d_cut)+1) for d < d_cut, else 0
+    Calculate cutoff value based on distance.
+    This uses the cosine Behler-Parinello cutoff function:
+
+    f(d) = 0.5*(cos(pi*d/d_cut)+1) for d < d_cut and 0 otherwise
     """
     return torch.where(
         edge_dist < cutoff,
@@ -14,8 +17,13 @@ def cosine_cutoff(edge_dist: torch.Tensor, cutoff: float):
 
 
 class SincRBF(nn.Module):
-    """Fixed sinc radial basis functions: sin(n*pi*d/d_cut) / d"""
+    """
+    Fixed sinc radial basis functions.
+
+    sin(n * pi * d / d_cut) / d
+    """
     def __init__(self, num_basis: int, cutoff: float):
+        """Initialize SincRBF with num_basis functions and cutoff distance."""
         super().__init__()
         self.cutoff = cutoff
         self.register_buffer('n', torch.arange(1, num_basis + 1).float())
@@ -25,8 +33,13 @@ class SincRBF(nn.Module):
 
 
 class GaussianRBF(nn.Module):
-    """Learnable Gaussian radial basis functions."""
+    """
+    Learnable Gaussian radial basis functions.
+
+    exp(-widths * (d - centers)^2)
+    """
     def __init__(self, num_basis: int, cutoff: float):
+        """Initialize GaussianRBF with num_basis learnable centers and widths."""
         super().__init__()
         centers = torch.linspace(0.5, cutoff, num_basis)
         self.register_buffer('initial_centers', centers.clone())
@@ -39,8 +52,11 @@ class GaussianRBF(nn.Module):
 
 
 class EdgeEmbedding(nn.Module):
-    """Embed radial basis into filter space: linear or two-layer MLP."""
+    """
+    Embed radial basis functions into filter space.
+    """
     def __init__(self, num_basis: int, num_channels: int, edge_embed: str = 'linear'):
+        """Initialize EdgeEmbedding with the given embedding type."""
         super().__init__()
         if edge_embed == 'mlp':
             self.net = nn.Sequential(
