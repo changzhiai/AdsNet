@@ -99,15 +99,15 @@ y_fit  = np.polyval(coeffs, x_fit)
 # ── plot ──────────────────────────────────────────────────────────────────────
 fig, ax = plt.subplots(figsize=(5, 3.8))
 
-ax.plot(x_fit, y_fit,
-        color='#E74C3C', lw=1.5, ls='--', label='Full graph (fit)')
+ax.plot(x_fit, y_fit, color='#E74C3C', lw=1.5, ls='--')
+        # color='#E74C3C', lw=1.5, ls='--', label='Full graph (fit)')
 ax.scatter(n_atoms_list, full_pairs,
            color='#E74C3C', s=55, zorder=4, label='Full graph')
 
 ax.plot(n_atoms_list, ads_pairs,
         color='#2ECC40', lw=1.5, ls='-')
 ax.scatter(n_atoms_list, ads_pairs,
-           color='#2ECC40', s=55, zorder=4, label='AdsNet graph')
+           color='#2ECC40', s=55, zorder=4, label='Ads. graph')
 
 # shade the saving region
 ax.fill_between(n_atoms_list, ads_pairs, full_pairs,
@@ -119,7 +119,7 @@ for n, fp, tile in zip(n_atoms_list, full_pairs, tiles):
                 xytext=(4, 4), textcoords='offset points',
                 fontsize=6.5, color='#555555')
 
-ax.set_xlabel('Number of atoms in slab', fontsize=9)
+ax.set_xlabel('Number of atoms', fontsize=9)
 ax.set_ylabel('Number of neighbor pairs', fontsize=9)
 ax.set_title('Graph size scaling: AdsNet vs. full neighbor list\n'
              f'(Pt slab + CO,  cutoff = {CUTOFF} Å)',
