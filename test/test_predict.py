@@ -16,6 +16,8 @@ def main():
         num_layers=state_dict["num_layers"],
         num_channels=state_dict["num_channels"],
         cutoff=state_dict["cutoff"],
+        rbf_type=state_dict.get("rbf_type", "sinc"),
+        edge_embed=state_dict.get("edge_embed", "linear"),
     )
     model.load_state_dict(state_dict["model"])
     model.eval()

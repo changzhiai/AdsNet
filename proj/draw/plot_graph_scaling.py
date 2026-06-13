@@ -103,7 +103,7 @@ ax.plot(x_fit, y_fit, color='#E74C3C', lw=1.5, ls='--')
         # color='#E74C3C', lw=1.5, ls='--', label='Full graph (fit)')
 ax.scatter(n_atoms_list, full_pairs,
            color='#E74C3C', s=55, zorder=4, label='Full graph')
-
+print(n_atoms_list, full_pairs, ads_pairs)
 ax.plot(n_atoms_list, ads_pairs,
         color='#2ECC40', lw=1.5, ls='-')
 ax.scatter(n_atoms_list, ads_pairs,

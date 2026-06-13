@@ -18,6 +18,8 @@ DEFAULT_CONFIG = {
     "num_channels": 128,
     "num_layers": 3,
     "cutoff": 5.5,
+    "rbf_type": "sinc",
+    "edge_embed": "linear",
     # Training parameters
     "device": None,
     "batch_size": 12,
@@ -258,6 +260,8 @@ class Trainer:
             num_channels=config["num_channels"],
             cutoff=config["cutoff"],
             compute_forces=bool(config["forces_weight"]),
+            rbf_type=config["rbf_type"],
+            edge_embed=config["edge_embed"],
         )
         net.to(self.device)
         total_params = sum(p.numel() for p in net.parameters() if p.requires_grad)
@@ -387,6 +391,8 @@ class Trainer:
                                 "num_channels": config["num_channels"],
                                 "num_layers": config["num_layers"],
                                 "cutoff": config["cutoff"],
+                                "rbf_type": config["rbf_type"],
+                                "edge_embed": config["edge_embed"],
                             },
                             os.path.join(config["output_dir"], config["output_model"]),
                         )
@@ -411,6 +417,8 @@ class Trainer:
                             "num_channels": config["num_channels"],
                             "num_layers": config["num_layers"],
                             "cutoff": config["cutoff"],
+                            "rbf_type": config["rbf_type"],
+                            "edge_embed": config["edge_embed"],
                         },
                         os.path.join(config["output_dir"], "exit_" + config["output_model"]),
                     )

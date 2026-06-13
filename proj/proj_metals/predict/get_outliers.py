@@ -167,6 +167,8 @@ def main(read_csv=False):
         num_channels=state_dict["num_channels"],
         cutoff=state_dict["cutoff"],
         compute_forces = bool(args.forces_weight),
+        rbf_type=state_dict.get("rbf_type", "sinc"),
+        edge_embed=state_dict.get("edge_embed", "linear"),
     )
     model.to(args.device)
     model.load_state_dict(state_dict["model"])

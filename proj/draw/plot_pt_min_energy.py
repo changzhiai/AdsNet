@@ -75,6 +75,8 @@ def load_model(model_path):
         num_layers=ck['num_layers'],
         num_channels=ck['num_channels'],
         cutoff=ck['cutoff'],
+        rbf_type=ck.get('rbf_type', 'sinc'),
+        edge_embed=ck.get('edge_embed', 'linear'),
     )
     model.load_state_dict(ck['model'])
     model.eval()
