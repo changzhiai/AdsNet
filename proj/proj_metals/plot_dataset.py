@@ -23,24 +23,24 @@ for atoms in traj:
     ads_syms = [syms[i] for i in ads_idx]
     surf_syms = [s for i, s in enumerate(syms) if i not in ads_idx]
     metal = list(set(surf_syms))[0] if len(set(surf_syms)) == 1 else 'mixed'
-    ads   = ''.join(sorted(set(ads_syms)))
+    ads   = ''.join(sorted(ads_syms))
     energy = atoms.info['data']['ads_energy']
     rows.append({'metal': metal, 'adsorbate': ads, 'energy': energy})
 
 df = pd.DataFrame(rows)
 print(f'Loaded {len(df)} structures')
 
-# keep only the 4 primary adsorbates
-# 'ads' is built from sorted unique symbols: H→'H', CO→'CO', OH→'HO', HOCO→'CHO'
-primary_ads = ['H', 'CO', 'HO', 'CHO']
+# keep only the 6 primary adsorbates
+# 'ads' is built from sorted unique symbols: H→'H', C→'C', O→'O', CO→'CO', OH→'HO', HOCO→'CHO'
+primary_ads = ['H', 'C', 'O', 'CO', 'HO', 'CHOO']
 df_main = df[df['adsorbate'].isin(primary_ads)].copy()
-ads_labels = {'H': 'H*', 'CO': 'CO*', 'HO': 'OH*', 'CHO': 'HOCO*'}
+ads_labels = {'H': 'H*', 'C': 'C*', 'O': 'O*', 'CO': 'CO*', 'HO': 'OH*', 'CHOO': 'HOCO*'}
 df_main['adsorbate'] = df_main['adsorbate'].map(ads_labels)
 
 METALS = ['Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn',
           'Y',  'Zr', 'Nb', 'Mo', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd',
           'Hf', 'Ta', 'W',  'Re', 'Ir', 'Pt', 'Au']
-ADS_ORDER = ['H*', 'CO*', 'OH*', 'HOCO*']
+ADS_ORDER = ['H*', 'C*', 'O*', 'CO*', 'OH*', 'HOCO*']
 
 
 # ── Figure 1: heatmap of min binding energy ─────────────────────────────────
@@ -64,7 +64,10 @@ ax.set_ylabel('Metal', fontsize=11)
 for i, metal in enumerate(METALS):
     for j, ads in enumerate(ADS_ORDER):
         val = pivot_min.loc[metal, ads] if (metal in pivot_min.index and ads in pivot_min.columns) else np.nan
-        if not np.isnan(val):
+        if np.isnan(val):
+            ax.text(j, i, '—', ha='center', va='center',
+                    fontsize=7, color='gray')
+        else:
             color = 'white' if abs(val) > 1.5 else 'black'
             ax.text(j, i, f'{val:.2f}', ha='center', va='center',
                     fontsize=7, color=color)
@@ -101,7 +104,7 @@ counts = counts.reindex(index=METALS, columns=ADS_ORDER, fill_value=0)
 
 fig, ax = plt.subplots(figsize=(10, 4.5))
 bottom = np.zeros(len(METALS))
-colors = ['#6096BA', '#E07A5F', '#81B29A', '#F2CC8F']
+colors = ['#6096BA', '#E07A5F', '#81B29A', '#F2CC8F', '#A06CD5', '#FF9F1C']
 for ads, color in zip(ADS_ORDER, colors):
     vals = counts[ads].values
     ax.bar(range(len(METALS)), vals, bottom=bottom, label=ads,
