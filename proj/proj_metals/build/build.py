@@ -71,15 +71,18 @@ def get_sites(gs):
     return supported_sites[gs]
 
 def get_metals():
+
     metals = [
         "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn",
-        "Y", "Zr", "Nb", "Mo", "Ru", "Rh", "Ag", "Cd",
+        "Y", "Zr", "Nb", "Mo", "Ru", "Rh", "Pd", "Ag", "Cd",
         "Hf", "Ta", "W", "Re", "Ir", "Pt", "Au"
     ]
     return metals
 
 def get_adsobates():
     h = Atoms([Atom('H', (0., 0., 0.))])
+    c = Atoms([Atom('C', (0., 0., 0.))])
+    o = Atoms([Atom('O', (0., 0., 0.))])
     
     co = Atoms([Atom('C', (0., 0., 0.)),
                  Atom('O', (0., 0., 1.14))])
@@ -95,6 +98,8 @@ def get_adsobates():
     hoco.center(vacuum=8.0)
     
     adsorbates = {
+        "C": c,
+        "O": o,
         "H": h,
         "CO": co,
         "OH": oh,
@@ -120,6 +125,7 @@ ground_state = {
     "Mo": ("bcc", 3.15),
     "Ru": ("hcp", 2.71, 4.28),
     "Rh": ("fcc", 3.80),
+    "Pd": ("fcc", 3.89),
     "Ag": ("fcc", 4.09),
     "Cd": ("hcp", 2.98, 5.62),
     "Hf": ("hcp", 3.19, 5.05),
@@ -139,7 +145,7 @@ if __name__ == "__main__":
     adsorbates = get_adsobates()
     path = os.getcwd()
     with cd('run_dft'):
-        for metal in metals[1:]:
+        for metal in metals[:]:
             with cd(f'{metal}'):
                 info = ground_state.get(metal, None)
                 if info is None or info[0] == "complex":
@@ -147,13 +153,12 @@ if __name__ == "__main__":
                     continue
                 slab = build_slab(metal, info)
                 slab = fix_bottom_layer(slab)
-                with cd('slab'):
-                    write('start.traj', slab)
-                    os.system(f'cp {path}/dft.py .')
-                    os.system(f'cp {path}/arguments.toml .')
-                    os.system(f'cp {path}/submit.sh .')
-                    os.system('sbatch submit.sh')
-                    # assert False
+                # with cd('slab'):
+                    # write('start.traj', slab)
+                    # os.system(f'cp {path}/dft.py .')
+                    # os.system(f'cp {path}/arguments.toml .')
+                    # os.system(f'cp {path}/submit.sh .')
+                    # os.system('sbatch submit.sh')
 
                 sites = get_sites(info[0])
                 for ads_name, ads in adsorbates.items():
@@ -161,7 +166,7 @@ if __name__ == "__main__":
                         for site in sites:
                             with cd(f'{site}'):
                                 slab_with_ads = slab.copy()
-                                height = {"H": 1.0, "CO": 1.8, "OH": 1.5, "HOCO": 2.0}[ads_name]
+                                height = {"H": 1.0, "C": 1.5, "O": 1.5, "CO": 1.8, "OH": 1.5, "HOCO": 2.0}[ads_name]
                                 add_adsorbate(slab_with_ads, ads, height=height, position=site)
                                 images.append(slab_with_ads)
                                 write('start.traj', slab_with_ads)
@@ -169,3 +174,4 @@ if __name__ == "__main__":
                                 os.system(f'cp {path}/arguments.toml .')
                                 os.system(f'cp {path}/submit.sh .')
                                 os.system('sbatch submit.sh')
+                                # assert False
