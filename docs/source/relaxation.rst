@@ -191,4 +191,83 @@ Return Value
 - ``message`` (str): Description of termination reason
 
 
+SLURM Job Script
+----------------
+
+Example SLURM submission script for relaxation on a GPU node:
+
+.. code-block:: bash
+
+   #!/bin/bash
+   #SBATCH --job-name=adsnet-relax
+   #SBATCH --partition=gpu
+   #SBATCH --nodes=1
+   #SBATCH --ntasks=1
+   #SBATCH --gpus-per-node=1
+   #SBATCH --cpus-per-task=4
+   #SBATCH --mem=16G
+   #SBATCH --time=4:00:00
+   #SBATCH --output=relax_%j.out
+
+   module load cuda pytorch
+
+   python relax.py
+
+For relaxing many structures in parallel on CPU (useful when GPU is not needed):
+
+.. code-block:: bash
+
+   #!/bin/bash
+   #SBATCH --job-name=adsnet-relax-batch
+   #SBATCH --partition=normal
+   #SBATCH --nodes=1
+   #SBATCH --ntasks=1
+   #SBATCH --cpus-per-task=16
+   #SBATCH --mem=64G
+   #SBATCH --time=8:00:00
+   #SBATCH --output=relax_batch_%j.out
+
+   module load pytorch
+
+   python relax_batch.py
+
+Where ``relax_batch.py`` uses multiprocessing to relax structures in parallel:
+
+.. code-block:: python
+
+   import torch
+   from concurrent.futures import ProcessPoolExecutor
+   from ase.io import read, write
+   from adsnet.models import AdsNet
+   from adsnet.tools import relax_structure
+
+   def relax_one(idx):
+       state_dict = torch.load("output/model.pt", map_location='cpu')
+       model = AdsNet(
+           num_layers=state_dict["num_layers"],
+           num_channels=state_dict["num_channels"],
+           cutoff=state_dict["cutoff"],
+           compute_forces=True,
+           rbf_type=state_dict.get("rbf_type", "sinc"),
+           edge_embed=state_dict.get("edge_embed", "linear"),
+       )
+       model.load_state_dict(state_dict["model"])
+       model.eval()
+
+       atoms = read("structures.traj", index=idx)
+       result = relax_structure(atoms, model, force_tol=1e-3, max_iter=80)
+       return result['atoms'], result['energy'], result['success']
+
+   if __name__ == "__main__":
+       images = read("structures.traj", ":")
+       n_workers = 16
+
+       with ProcessPoolExecutor(max_workers=n_workers) as executor:
+           results = list(executor.map(relax_one, range(len(images))))
+
+       relaxed = [r[0] for r in results]
+       write("relaxed_all.traj", relaxed)
+       print(f"Relaxed {len(relaxed)} structures")
+
+
 For more details on the API, see the :doc:`api` reference.

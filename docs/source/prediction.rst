@@ -63,4 +63,61 @@ For efficient batch prediction over a dataset:
            energies = output['ads_energy']
 
 
+SLURM Job Script
+----------------
+
+Example SLURM submission script for batch prediction on a GPU node:
+
+.. code-block:: bash
+
+   #!/bin/bash
+   #SBATCH --job-name=adsnet-predict
+   #SBATCH --partition=gpu
+   #SBATCH --nodes=1
+   #SBATCH --ntasks=1
+   #SBATCH --gpus-per-node=1
+   #SBATCH --cpus-per-task=4
+   #SBATCH --mem=16G
+   #SBATCH --time=2:00:00
+   #SBATCH --output=predict_%j.out
+
+   module load cuda pytorch
+
+   python predict.py
+
+Where ``predict.py`` contains:
+
+.. code-block:: python
+
+   import torch
+   from adsnet.models import AdsNet
+   from adsnet.data import AseData, collate_atomsdata
+   from torch.utils.data import DataLoader
+
+   state_dict = torch.load("output/model.pt", map_location='cuda')
+   model = AdsNet(
+       num_layers=state_dict["num_layers"],
+       num_channels=state_dict["num_channels"],
+       cutoff=state_dict["cutoff"],
+       compute_forces=True,
+       rbf_type=state_dict.get("rbf_type", "sinc"),
+       edge_embed=state_dict.get("edge_embed", "linear"),
+   )
+   model.load_state_dict(state_dict["model"])
+   model.to("cuda")
+   model.eval()
+
+   dataset = AseData("test_structures.traj", cutoff=5.5, compute_forces=True)
+   dataloader = DataLoader(dataset, batch_size=64, num_workers=4,
+                           collate_fn=collate_atomsdata, pin_memory=True)
+
+   with torch.no_grad():
+       for batch in dataloader:
+           batch = {k: v.to("cuda", non_blocking=True) for k, v in batch.items()}
+           output = model(batch)
+           energies = output['ads_energy'].cpu().numpy()
+           for e in energies:
+               print(f"{e:.6f}")
+
+
 For structure relaxation, see the :doc:`relaxation` guide. For more details on the API, see the :doc:`api` reference.

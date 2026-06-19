@@ -102,3 +102,45 @@ Set ``distributed=True`` in the ``Trainer``:
        distributed=True,
    )
    trainer.train("dataset.traj")
+
+
+SLURM Job Script
+----------------
+
+Example SLURM submission script for training on a GPU cluster:
+
+.. code-block:: bash
+
+   #!/bin/bash
+   #SBATCH --job-name=adsnet-train
+   #SBATCH --partition=gpu
+   #SBATCH --nodes=1
+   #SBATCH --ntasks-per-node=1
+   #SBATCH --gpus-per-node=1
+   #SBATCH --cpus-per-task=4
+   #SBATCH --mem=32G
+   #SBATCH --time=24:00:00
+   #SBATCH --output=train_%j.out
+
+   module load cuda pytorch
+
+   python train.py
+
+For multi-GPU training:
+
+.. code-block:: bash
+
+   #!/bin/bash
+   #SBATCH --job-name=adsnet-train-ddp
+   #SBATCH --partition=gpu
+   #SBATCH --nodes=1
+   #SBATCH --ntasks-per-node=4
+   #SBATCH --gpus-per-node=4
+   #SBATCH --cpus-per-task=4
+   #SBATCH --mem=128G
+   #SBATCH --time=48:00:00
+   #SBATCH --output=train_ddp_%j.out
+
+   module load cuda pytorch
+
+   torchrun --nproc_per_node=4 train.py
