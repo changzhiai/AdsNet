@@ -63,21 +63,4 @@ For efficient batch prediction over a dataset:
            energies = output['ads_energy']
 
 
-Applications: Structure Relaxation
------------------------------------
-
-The ASE optimizers like ``BFGS`` can be used to relax a structure:
-
-.. code-block:: python
-
-   from adsnet.calculators import MLCalculator
-   from adsnet.tools import relax_structure
-   from ase.io import read
-
-   atoms = read("atoms.traj")
-   calc = MLCalculator("output/model.pt")
-
-   result = relax_structure(atoms, calc, fmax=0.05)
-
-
-For more details on the API, see the :doc:`api` reference.
+For structure relaxation, see the :doc:`relaxation` guide. For more details on the API, see the :doc:`api` reference.

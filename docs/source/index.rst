@@ -11,8 +11,11 @@ The code is available and actively maintained on `GitHub <https://github.com/cha
 
    installation
    quickstart
+   data_preparation
    training
    prediction
+   relaxation
+   foundation
    api
 
 Indices and tables
