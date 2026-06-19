@@ -21,6 +21,6 @@ extensions = [
     'sphinx.ext.viewcode',
 ]
 
-autodoc_mock_imports = ['torch', 'ase', 'numpy']
+autodoc_mock_imports = ['torch', 'ase', 'numpy', 'asap3', 'scipy']
 
 autodoc_class_signature = 'mixed'
