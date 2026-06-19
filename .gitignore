@@ -17,6 +17,7 @@ run.toml
 args.*
 *.traj
 *.txt
+!docs/requirements.txt
 *.pyc
 metals_with_adss.traj
 paper
