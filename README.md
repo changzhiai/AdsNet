@@ -26,7 +26,7 @@ AdsNet is an equivariant graph neural network framework for predicting adsorptio
 
 Key features:
 
-- **Equivariant GNN architecture** — PaiNN-style message passing with scalar and vector channels
+- **Equivariant GNN architecture** — message passing with scalar and vector channels
 - **Local interaction model** — computational cost independent of total system size
 - **Multi-task learning** — jointly predicts adsorption energies and local forces
 - **ASE calculator interface** — seamless integration with the Atomic Simulation Environment
