@@ -79,7 +79,7 @@ def plot_fitting_joint(train_dft, train_nnp, test_dft, test_nnp, fig_name='fitti
     for spine in ['top', 'right', 'bottom']:
         ax_right.spines[spine].set_visible(False)
 
-    fig.savefig(f'{path}/{fig_name}', dpi=300, bbox_inches='tight')
+    fig.savefig(f'{path}/{fig_name}', dpi=150, bbox_inches='tight')
     plt.close()
     print(f'Saved figure to {path}/{fig_name}')
 
@@ -119,7 +119,7 @@ def plot_fitting(train_dft, train_nnp, test_dft, test_nnp, fig_name='fitting.png
     ax.legend(loc='upper left', fontsize=9)
     ax.set_aspect('equal')
     plt.tight_layout()
-    fig.savefig(f'{path}/{fig_name}', dpi=300)
+    fig.savefig(f'{path}/{fig_name}', dpi=150)
     plt.close()
     print(f'Saved figure to {path}/{fig_name}')
 
@@ -127,12 +127,10 @@ def plot_fitting(train_dft, train_nnp, test_dft, test_nnp, fig_name='fitting.png
 def main():
     state_dict = torch.load(f'{path}/../model.pt', map_location='cuda')
     model = AdsNet(
-        num_layers=state_dict["num_layers"],
-        num_channels=state_dict["num_channels"],
-        cutoff=state_dict["cutoff"],
-        rbf_type=state_dict.get("rbf_type", "sinc"),
-        edge_embed=state_dict.get("edge_embed", "linear"),
-    )
+            num_layers=state_dict["num_layers"],
+            num_channels=state_dict["num_channels"],
+            cutoff=state_dict["cutoff"],
+        )
     model.load_state_dict(state_dict["model"])
     model.eval()
 
@@ -148,8 +146,8 @@ def main():
             nnp_energies.append(calc.get_binding_energy(atoms))
         return formulas, dft_energies, nnp_energies
 
-    train_formulas, train_dft, train_nnp = predict_set('/pscratch/sd/c/changzhi/test/adsnet/forces/test/db/dataset_refine2/train.traj')
-    test_formulas,  test_dft,  test_nnp  = predict_set('/pscratch/sd/c/changzhi/test/adsnet/forces/test/db/dataset_refine2/test.traj')
+    train_formulas, train_dft, train_nnp = predict_set('/pscratch/sd/c/changzhi/adsnet/extra_dataset/refine_1/train/output/re_train/output/output/predict/train_refined.traj')
+    test_formulas,  test_dft,  test_nnp  = predict_set('/pscratch/sd/c/changzhi/adsnet/extra_dataset/refine_1/train/output/re_train/output/output/predict/test_refined.traj')
     print(f'Train: {len(train_dft)} structures  |  Test: {len(test_dft)} structures')
 
     for label, dft, nnp in [('Train', train_dft, train_nnp), ('Test', test_dft, test_nnp)]:

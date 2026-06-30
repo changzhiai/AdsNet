@@ -24,11 +24,12 @@ from ase.visualize.plot import plot_atoms
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_MODEL = f'{HERE}/../proj_metals/output/model.pt'
 # DEFAULT_MODEL = f'{HERE}/../proj_metals/legacy2_output/model.pt'
-# DEFAULT_TRAJ  = f'{HERE}/../proj_metals/dataset/total.traj'
-DEFAULT_TRAJ  = f'{HERE}/../proj_metals/legacy_dataset/images_refined.traj'
+DEFAULT_TRAJ  = f'{HERE}/../proj_metals/dataset/total.traj'
+# DEFAULT_TRAJ  = f'{HERE}/../proj_metals/legacy_dataset/images_refined.traj'
 
 # sorted-unique-symbol keys → display label
-_ADS_KEY = {'H': 'H*', 'CO': 'CO*', 'HO': 'OH*', 'CHO': 'HOCO*'}
+_ADS_KEY = {'H': 'H*', 'C': 'C*', 'O': 'O*', 'CO': 'CO*', 'HO': 'OH*', 'CHO': 'HOCO*'}
+# ADS_ORDER = ['H*', 'C*', 'O*', 'CO*', 'OH*', 'HOCO*']
 ADS_ORDER = ['H*', 'CO*', 'OH*', 'HOCO*']
 
 
@@ -43,7 +44,7 @@ def _is_pt(atoms):
     syms    = atoms.get_chemical_symbols()
     ads_idx = set(atoms.info['data']['ads_idx'])
     surf    = [s for i, s in enumerate(syms) if i not in ads_idx]
-    return len(set(surf)) == 1 and set(surf) == {'Pt'}
+    return len(set(surf)) == 1 and set(surf) == {'Cu'}
 
 
 def find_min_energy_structures(traj_path):
@@ -56,7 +57,7 @@ def find_min_energy_structures(traj_path):
             continue
         key   = _ads_key(atoms)
         label = _ADS_KEY.get(key)
-        if label is None:
+        if label is None or label not in best:
             continue
         energy = atoms.info['data']['ads_energy']
         if energy < best[label][1]:
@@ -146,8 +147,9 @@ def main():
         local_idx      = np.asarray(local_idx).flatten()
         local_energies = np.asarray(local_energies).flatten()
 
-        abs_max = float(np.max(np.abs(local_energies)))
-        norm    = plt.Normalize(vmin=-abs_max, vmax=abs_max)
+        # norm = plt.Normalize(vmin=float(np.min(local_energies)), vmax=float(np.max(local_energies)))
+        abs_v = np.max(np.abs(local_energies))
+        norm = plt.Normalize(vmin=-abs_v, vmax=abs_v)  # symmetric
         e_dict  = dict(zip(local_idx.tolist(), local_energies.tolist()))
 
         colors = []
@@ -168,7 +170,7 @@ def main():
         sm = plt.cm.ScalarMappable(cmap=cm, norm=norm)
         sm.set_array([])
         cbar = fig.colorbar(sm, ax=ax, fraction=0.032, pad=0.02, shrink=0.7)
-        cbar.set_label('Atom energy (eV)', fontsize=8)
+        cbar.set_label('Atomic binding energy (eV)', fontsize=8)
         cbar.ax.tick_params(labelsize=7)
 
     plt.tight_layout(pad=0.8)
