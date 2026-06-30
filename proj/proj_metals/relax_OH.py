@@ -76,7 +76,7 @@ def plot_atoms_panel(ax, atoms, colors, title, fig, cmap, norm):
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
     cbar = fig.colorbar(sm, ax=ax, fraction=0.032, pad=0.02, shrink=0.7)
-    cbar.set_label('Atom energy (eV)', fontsize=8)
+    cbar.set_label('Atomic binding energy (eV)', fontsize=8)
     cbar.ax.tick_params(labelsize=7)
 
 
@@ -145,48 +145,81 @@ def main():
         write(out_traj, traj)
         print(f'Saved trajectory → {out_traj}')
 
-    # ── per-atom energies for initial and relaxed ─────────────────────────────
+    # ── DFT reference energies and relaxed structure ────────────────────────
+    E_dft_init    = atoms_init.info['data']['ads_energy']
+    E_dft_relaxed = 0.25761523999999625
+
+    atoms_dft_relaxed = read(f'{HERE}/relax/final.traj')
+    atoms_dft_relaxed.info['data'] = {}
+    atoms_dft_relaxed.info['data']['ads_idx'] = atoms_init.info['data']['ads_idx']
+    atoms_dft_relaxed.info['data']['ads_energy'] = E_dft_relaxed
+
+    # ── per-atom energies for all structures ──────────────────────────────────
     idx_i, e_i, E_i = get_atom_energies(atoms_init, calc)
     idx_r, e_r, E_r = get_atom_energies(atoms_relaxed, calc)
+    idx_d, e_d, E_d = get_atom_energies(atoms_dft_relaxed, calc)
 
-    # shared colormap range across both structures
-    all_e  = np.concatenate([e_i, e_r])
+    # shared colormap range across all structures
+    all_e   = np.concatenate([e_i, e_r, e_d])
     abs_max = float(np.max(np.abs(all_e)))
-    norm   = plt.Normalize(vmin=-abs_max, vmax=abs_max)
-    cm     = plt.get_cmap(args.cmap)
+    norm    = plt.Normalize(vmin=-abs_max, vmax=abs_max)
+    cm      = plt.get_cmap(args.cmap)
 
-    colors_i = atoms_energy_colors(atoms_init,    idx_i, e_i, cm, norm)
-    colors_r = atoms_energy_colors(atoms_relaxed, idx_r, e_r, cm, norm)
+    colors_i = atoms_energy_colors(atoms_init,        idx_i, e_i, cm, norm)
+    colors_r = atoms_energy_colors(atoms_relaxed,     idx_r, e_r, cm, norm)
+    colors_d = atoms_energy_colors(atoms_dft_relaxed, idx_d, e_d, cm, norm)
 
-    # ── figure ────────────────────────────────────────────────────────────────
-    fig = plt.figure(figsize=(12, 4))
+    # ── figure: energy curve (left) + 2x2 structures (right) ─────────────────
+    fig = plt.figure(figsize=(12, 6))
     fig.patch.set_facecolor('white')
 
-    gs = fig.add_gridspec(1, 3, width_ratios=[1.2, 1, 1], wspace=0.35)
-    ax_curve  = fig.add_subplot(gs[0])
-    ax_init   = fig.add_subplot(gs[1])
-    ax_relax  = fig.add_subplot(gs[2])
+    gs = fig.add_gridspec(2, 3, width_ratios=[1.5, 1, 1],
+                          height_ratios=[1, 1], hspace=0.1, wspace=0.3)
 
-    # energy curve
+    # left: energy curve spanning both rows
+    ax_curve = fig.add_subplot(gs[:, 0])
+    ax_curve.set_aspect('auto')
+    ax_curve.set_box_aspect(0.9)
+
     steps = np.arange(1, len(energies) + 1)
-    ax_curve.plot(steps, energies, color='#2166ac', lw=1.5)
-    ax_curve.axhline(energies[-1], color='#d6604d', lw=0.8, ls='--',
-                     label=f'Relaxed: {energies[-1]:.3f} eV')
-    ax_curve.axhline(energies[0],  color='#888888', lw=0.8, ls='--',
-                     label=f'Initial: {energies[0]:.3f} eV')
-    ax_curve.set_xlabel('Relaxation step', fontsize=10)
-    ax_curve.set_ylabel('$E_b$ (eV)', fontsize=10)
-    ax_curve.legend(fontsize=8, framealpha=0.85)
+    ax_curve.plot(steps, energies, color='#2166ac', lw=2, marker='o', ms=3,
+                  label='NNP relaxation')
+    # ax_curve.axhline(E_dft_init, color='#888888', lw=1.2, ls='--',
+    #                  label=f'DFT initial: {E_dft_init:.4f} eV')
+    # ax_curve.axhline(E_dft_relaxed, color='#d6604d', lw=1.2, ls='--',
+    #                  label=f'DFT relaxed: {E_dft_relaxed:.4f} eV')
+    ax_curve.axhline(energies[-1], color='#2166ac', lw=1.0, ls=':',
+                     label=f'NNP relaxed: {energies[-1]:.4f} eV')
+    ax_curve.set_xlabel('Relaxation step', fontsize=11)
+    ax_curve.set_ylabel('$E_\\mathrm{ads}$ (eV)', fontsize=11)
+    ax_curve.legend(fontsize=9, framealpha=0.85, loc='upper right')
     ax_curve.spines[['top', 'right']].set_visible(False)
     ax_curve.tick_params(labelsize=9)
 
-    # before / after atom plots
-    plot_atoms_panel(ax_init,  atoms_init,    colors_i,
-                     f'Initial   $E_b$={E_i:.3f} eV', fig, cm, norm)
-    plot_atoms_panel(ax_relax, atoms_relaxed, colors_r,
-                     f'Relaxed   $E_b$={E_r:.3f} eV', fig, cm, norm)
+    # right 2x2: top row = initial structures, bottom row = relaxed structures
+    ax_init_dft  = fig.add_subplot(gs[0, 1])
+    ax_init_nnp  = fig.add_subplot(gs[0, 2])
+    ax_relax_dft = fig.add_subplot(gs[1, 1])
+    ax_relax_nnp = fig.add_subplot(gs[1, 2])
 
-    plt.tight_layout(pad=0.5)
+    # top-left: initial (DFT label)
+    plot_atoms_panel(ax_init_dft, atoms_init, colors_i,
+                     f'Initial (DFT)  $E_{{ads}}$={E_dft_init:.4f} eV',
+                     fig, cm, norm)
+    # top-right: initial (NNP label)
+    plot_atoms_panel(ax_init_nnp, atoms_init, colors_i,
+                     f'Initial (NNP)  $E_{{ads}}$={E_dft_init:.4f} eV',
+                     fig, cm, norm)
+    # bottom-left: DFT relaxed structure
+    plot_atoms_panel(ax_relax_dft, atoms_dft_relaxed, colors_d,
+                     f'Relaxed (DFT)  $E_{{ads}}$={E_dft_relaxed:.4f} eV',
+                     fig, cm, norm)
+    # bottom-right: NNP relaxed structure
+    plot_atoms_panel(ax_relax_nnp, atoms_relaxed, colors_r,
+                     f'Relaxed (NNP)  $E_{{ads}}$={E_r:.4f} eV',
+                     fig, cm, norm)
+
+    plt.tight_layout(pad=0.8)
     fig.savefig(args.out, dpi=args.dpi, bbox_inches='tight', facecolor='white')
     print(f'Saved → {args.out}')
     if not args.no_show:
