@@ -21,3 +21,4 @@ args.*
 *.pyc
 metals_with_adss.traj
 paper
+OUTCAR

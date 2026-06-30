@@ -43,6 +43,7 @@ def optimize_local_coords(
     energy_plateau_tol=1e-5,
     energy_plateau_patience=30,
     n_evals=None,
+    max_energy_drop=1.0,
 ):
     """Relax local coordinates using PGD (default) or L-BFGS-B.
 
@@ -141,6 +142,8 @@ def optimize_local_coords(
             x_try = np.clip(x - alpha * grad, lo, hi)
             energy_try, grad_try = fun_and_grad(x_try)
             if np.isfinite(energy_try) and energy_try < energy - 1e-6:
+                if energy - energy_try > max_energy_drop:
+                    continue
                 x, energy, grad = x_try, energy_try, grad_try
                 improved = True
                 if on_step is not None:
@@ -160,6 +163,8 @@ def optimize_local_coords(
                             continue
                         energy_try, grad_try = fun_and_grad(x_try)
                         if np.isfinite(energy_try) and energy_try < energy - 1e-6:
+                            if energy - energy_try > max_energy_drop:
+                                continue
                             x, energy, grad = x_try, energy_try, grad_try
                             improved = True
                             if on_step is not None:
