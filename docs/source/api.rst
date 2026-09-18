@@ -22,6 +22,8 @@ Models
 .. autoclass:: adsnet.models.adsnet.EdgeEmbedding
    :members: __init__, forward
 
+.. autofunction:: adsnet.models.adsnet.cosine_cutoff
+
 
 Data
 ----
@@ -38,6 +40,11 @@ Trainer
 .. autoclass:: adsnet.trainer.Trainer
    :members: __init__, train, evaluate
 
+.. autoclass:: adsnet.trainer.EarlyStopping
+   :members: __init__, __call__
+
+.. autodata:: adsnet.trainer.DEFAULT_CONFIG
+
 
 Calculators
 -----------
@@ -47,6 +54,12 @@ Calculators
 
 .. autoclass:: adsnet.calculators.EnsembleCalculator
    :members: __init__, calculate, get_binding_energy, get_local_forces, get_be_distributions, get_uncertainty
+
+
+Foundation
+----------
+
+.. autodata:: adsnet.foundation.foundation_model
 
 
 Tools

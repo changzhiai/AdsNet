@@ -1,4 +1,6 @@
-# AdsNet (Adsorption Network)
+<p align="left">
+  <img src="docs/source/_static/images/logo.png" width="50%" alt="AdsNet — Adsorption Neural Network">
+</p>
 
 [![Docs](https://img.shields.io/badge/Docs-available-blue)](https://adsnet.readthedocs.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/license/MIT)

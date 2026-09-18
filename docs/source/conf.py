@@ -15,6 +15,7 @@ exclude_patterns = []
 import sphinx_rtd_theme
 
 html_theme = 'sphinx_rtd_theme'
+html_logo = '_static/images/logo.png'
 
 extensions = [
     'sphinx.ext.autodoc',
