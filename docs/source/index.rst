@@ -24,6 +24,7 @@ The code is available on `GitHub <https://github.com/changzhiai/AdsNet>`_. For q
    :maxdepth: 2
    :caption: Contents:
 
+   about
    installation
    quickstart
    data_preparation
