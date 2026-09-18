@@ -3,7 +3,8 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
 project = 'AdsNet'
-copyright = '2025, Changzhi Ai'
+from datetime import datetime
+copyright = f'2025-{datetime.now().year}, Changzhi Ai'
 author = 'Changzhi Ai'
 release = '0.1.1'
 
