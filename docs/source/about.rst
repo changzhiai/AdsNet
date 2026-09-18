@@ -8,7 +8,7 @@ Adsorbate Graph
 
 The key of AdsNet is the use of a local adsorbate graph instead of a full graph. As shown in the example below, the full graph of a Pt 4×4×4 slab with one CO* adsorbate contains 66 nodes and 1083 edges, while the corresponding adsorbate graph contains only 12 nodes and 17 edges. This dramatically reduces computational cost, which becomes independent of the total system size.
 
-.. image:: images/1_cost.png
+.. image:: _static/images/1_cost.png
    :width: 70%
    :align: center
    :alt: Comparison of full graph and adsorbate graph representations and their computational cost scaling.
@@ -20,7 +20,7 @@ Model Architecture
 
 AdsNet implements an equivariant message-passing architecture based on PaiNN with scalar and vector node features. The inputs are atomic numbers and interatomic vectors within the adsorbate graph. Interatomic distances are expanded using radial basis functions and modulated by a cosine cutoff envelope. After multiple interaction layers of message passing and equivariant updates, a readout MLP predicts adsorption energy contributions that are summed to obtain the total adsorption energy. Forces are computed via automatic differentiation.
 
-.. image:: images/2_arch.png
+.. image:: _static/images/2_arch.png
    :width: 80%
    :align: center
    :alt: Architecture of AdsNet showing equivariant message passing with scalar and vector node features.

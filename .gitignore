@@ -1,25 +1,31 @@
-test/mace/model_output*
-test/mace/Pt_ads.traj
-test/nequip/model_output*
-test/nequip/Pt_ads.traj
-test/painn/model_output*
-test/nequip/*.png
-test/nequip/*.csv
+# OS
 .DS_Store
-*.pth
-*.pt
-run.toml
-*.png
-*.pdf
-*.csv
-*.log
-*.json
-args.*
-*.traj
-*.txt
-!docs/requirements.txt
+
+# Python
 *.pyc
-metals_with_adss.traj
-paper
+__pycache__/
+
+# Data files
+*.traj
+!docs/requirements.txt
+
+# Model files
+*.pt
+*.pth
+
+# Build / output
+*.log
+docs/build/
+
+# Config
+run.toml
+args.*
+
+# VASP
 OUTCAR
-docs/build
+
+# Directories
+output*
+model_output*
+paper/
+proj/
