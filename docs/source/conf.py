@@ -16,6 +16,7 @@ import sphinx_rtd_theme
 
 html_theme = 'sphinx_rtd_theme'
 html_logo = '_static/images/logo.png'
+html_favicon = '_static/images/favicon.png'
 
 extensions = [
     'sphinx.ext.autodoc',
@@ -27,3 +28,5 @@ extensions = [
 autodoc_mock_imports = ['torch', 'ase', 'numpy', 'asap3', 'scipy']
 
 autodoc_class_signature = 'mixed'
+
+html_css_files = ['custom.css']

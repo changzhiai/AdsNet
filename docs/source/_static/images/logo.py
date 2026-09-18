@@ -89,4 +89,6 @@ plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
 out = "/Users/changzhi/Library/CloudStorage/OneDrive-SLACNationalAcceleratorLaboratory/SLAC/AdsNet/docs/source/_static/images/"
 fig.savefig(out + "logo.svg", bbox_inches="tight", facecolor="none", pad_inches=0, transparent=True)
 fig.savefig(out + "logo.png", dpi=300, bbox_inches="tight", facecolor="none", pad_inches=0, transparent=True)
-print("Saved logo.svg and logo.png")
+fig.savefig(out + "logo_white.png", dpi=300, bbox_inches="tight", facecolor="white", pad_inches=0.05)
+fig.savefig(out + "logo_white.svg", bbox_inches="tight", facecolor="white", pad_inches=0.05)
+print("Saved logo.svg, logo.png, logo_white.png, logo_white.svg")
