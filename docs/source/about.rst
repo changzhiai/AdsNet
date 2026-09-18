@@ -1,4 +1,4 @@
-About AdsNet
+About
 ============
 
 AdsNet is an equivariant graph neural network that directly predicts adsorption energies on transition metal surfaces in a single forward pass. Unlike conventional machine-learning interatomic potentials (MLIPs) that construct full-system graphs, AdsNet operates on a local adsorbate graph containing only the adsorbate atoms and their neighboring surface atoms within a cutoff radius.
@@ -6,10 +6,11 @@ AdsNet is an equivariant graph neural network that directly predicts adsorption 
 Adsorbate Graph
 ---------------
 
-The key innovation of AdsNet is the use of a local adsorbate graph instead of a full graph. As shown below, the full graph of a Pt 4×4×4 slab with one CO* adsorbate contains 66 nodes and 1083 edges, while the corresponding adsorbate graph contains only 12 nodes and 17 edges. This dramatically reduces computational cost, which becomes independent of the total system size.
+The key of AdsNet is the use of a local adsorbate graph instead of a full graph. As shown in the example below, the full graph of a Pt 4×4×4 slab with one CO* adsorbate contains 66 nodes and 1083 edges, while the corresponding adsorbate graph contains only 12 nodes and 17 edges. This dramatically reduces computational cost, which becomes independent of the total system size.
 
-.. image:: _static/images/1_cost.png
-   :width: 100%
+.. image:: images/1_cost.png
+   :width: 70%
+   :align: center
    :alt: Comparison of full graph and adsorbate graph representations and their computational cost scaling.
 
 **(a)** Full graph representation of Pt surface with CO* adsorbate. **(b)** Local adsorbate graph used by AdsNet. **(c)** Computational cost comparison showing that adsorbate graph cost is independent of system size.
@@ -17,14 +18,14 @@ The key innovation of AdsNet is the use of a local adsorbate graph instead of a 
 Model Architecture
 ------------------
 
-AdsNet implements an equivariant message-passing architecture based on PaiNN with scalar and vector node features. The inputs are atomic numbers and interatomic vectors within the adsorbate graph. Interatomic distances are expanded using radial basis functions and modulated by a cosine cutoff envelope. After multiple interaction layers of message passing and equivariant updates, a readout MLP predicts atomic energy contributions that are summed to obtain the total adsorption energy. Forces are computed via automatic differentiation.
+AdsNet implements an equivariant message-passing architecture based on PaiNN with scalar and vector node features. The inputs are atomic numbers and interatomic vectors within the adsorbate graph. Interatomic distances are expanded using radial basis functions and modulated by a cosine cutoff envelope. After multiple interaction layers of message passing and equivariant updates, a readout MLP predicts adsorption energy contributions that are summed to obtain the total adsorption energy. Forces are computed via automatic differentiation.
 
-.. image:: _static/images/2_arch.png
+.. image:: images/2_arch.png
    :width: 80%
    :align: center
    :alt: Architecture of AdsNet showing equivariant message passing with scalar and vector node features.
 
-The model uses equivariant message passing with scalar and vector channels over *L* interaction layers, followed by a readout MLP to predict atomic energies.
+The model uses equivariant message passing with scalar and vector channels over *L* interaction layers, followed by a readout MLP to predict adsorption energies.
 
 Citation
 --------

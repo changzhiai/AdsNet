@@ -6,19 +6,16 @@ Welcome to AdsNet's documentation!
 Key Features
 ------------
 
-* **Equivariant GNN architecture** — message passing with scalar and vector channels that respect rotational symmetry
-* **Local interaction model** — uses cutoff-based neighbor lists for efficient graph construction
-* **Multi-task learning** — jointly predicts adsorption energies and local forces
-* **ASE calculator interface** — seamless integration with the Atomic Simulation Environment
-* **Structure relaxation** — built-in projected gradient descent optimizer with box constraints
-* **Foundation model support** — pretrain on diverse datasets and fine-tune on specific systems
-* **Distributed training** — multi-GPU training via PyTorch DDP
+* **Single-pass adsorption energy** — predicts adsorption energies directly, no separate slab calculation needed
+* **System-size independent** — operates on local adsorbate graphs, cost does not grow with size
+* **Local structure relaxation** — built-in optimizer with projected gradient descent due to local forces supported
+* **Equivariant architecture** — PaiNN-based message passing with equivariant architecture
+* **Foundation model provided** — pretrain on diverse datasets, fine-tune on specific systems
+* **Parallel training** — multi-GPU training via PyTorch DDP
+* **ASE integration** — drop-in ASE calculator for use in existing workflows
 
-The code is available on `GitHub <https://github.com/changzhiai/AdsNet>`_. For questions or issues, please use the GitHub issue tracker.
+AdsNet is developed and maintained by Dr. Changzhi Ai at the SUNCAT Center, Stanford University and SLAC National Accelerator Laboratory. The code is available on `GitHub <https://github.com/changzhiai/AdsNet>`_. For questions or issues, please use the GitHub issue tracker.
 
-.. note::
-
-   AdsNet is developed and maintained by Dr. Changzhi Ai at the SUNCAT Center, Stanford University and SLAC National Accelerator Laboratory.
 
 .. toctree::
    :maxdepth: 2
@@ -36,9 +33,3 @@ The code is available on `GitHub <https://github.com/changzhiai/AdsNet>`_. For q
    api
    troubleshooting
 
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

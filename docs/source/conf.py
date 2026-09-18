@@ -5,9 +5,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 project = 'AdsNet'
 copyright = '2025, Changzhi Ai'
 author = 'Changzhi Ai'
-release = '0.1.0'
+release = '0.1.1'
 
 templates_path = ['_templates']
+html_static_path = ['_static']
 exclude_patterns = []
 
 import sphinx_rtd_theme

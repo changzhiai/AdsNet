@@ -26,13 +26,13 @@ AdsNet is an equivariant graph neural network framework for predicting adsorptio
 
 Key features:
 
-- **Equivariant GNN architecture** — message passing with scalar and vector channels
-- **Local interaction model** — computational cost independent of total system size
-- **Multi-task learning** — jointly predicts adsorption energies and local forces
-- **ASE calculator interface** — seamless integration with the Atomic Simulation Environment
-- **Structure relaxation** — projected gradient descent optimizer with box constraints
-- **Foundation model support** — pretrain on diverse datasets and fine-tune on specific systems
-- **Distributed training** — multi-GPU training via PyTorch DDP
+- **Single-pass adsorption energy** — predicts adsorption energies directly, no separate slab calculation needed
+- **System-size independent** — operates on local adsorbate graphs, cost does not grow with slab size
+- **Local structure relaxation** — built-in optimizer with projected gradient descent due to local forces supported
+- **Equivariant architecture** — PaiNN-based message passing with equivariant architecture
+- **Foundation model provided** — pretrain on diverse datasets, fine-tune on specific systems
+- **Parallel training** — multi-GPU training via PyTorch DDP
+- **ASE integration** — drop-in ASE calculator for use in existing workflows
 
 ### Documentation
 
