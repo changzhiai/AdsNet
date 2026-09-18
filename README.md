@@ -25,7 +25,7 @@
 AdsNet is an equivariant graph neural network framework for predicting adsorption energies on metal surfaces. It operates on a local adsorbate graph — containing only the adsorbate atoms and their neighboring surface atoms within a cutoff radius — to predict binding energies and local forces in a single forward pass. This local graph formulation decouples computational cost from total system size and encodes continuous geometric information (interatomic distances and directional vectors), enabling sensitivity to subtle variations in local bonding environments.
 
 <p align="center">
-  <img src="docs/source/_static/images/2_arch.svg" width="60%" alt="AdsNet architecture: equivariant message passing with scalar and vector node features">
+  <img src="docs/source/_static/images/2_arch.svg" width="40%" alt="AdsNet architecture: equivariant message passing with scalar and vector node features">
 </p>
 
 Key features:
