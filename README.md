@@ -1,5 +1,5 @@
 <p align="left">
-  <img src="docs/source/_static/images/logo.png" width="50%" alt="AdsNet — Adsorption Neural Network">
+  <img src="docs/source/_static/images/logo_v1.png" width="50%" alt="AdsNet — Adsorption Neural Network">
 </p>
 
 [![Docs](https://img.shields.io/badge/Docs-available-blue)](https://adsnet.readthedocs.io)
@@ -67,7 +67,7 @@ pip install -e .
 
 ### GPU Support
 
-For GPU-accelerated training, install PyTorch with CUDA support:
+For GPU-accelerated training, install [PyTorch](https://pytorch.org/get-started/locally/) with CUDA support:
 
 ```bash
 pip install torch --index-url https://download.pytorch.org/whl/cu121

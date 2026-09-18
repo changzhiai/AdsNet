@@ -15,7 +15,7 @@ If you get CUDA-related errors, ensure your PyTorch installation matches your CU
 
    python -c "import torch; print(torch.cuda.is_available()); print(torch.version.cuda)"
 
-Reinstall PyTorch with the correct CUDA version from https://pytorch.org/get-started/locally/.
+Reinstall PyTorch with the correct CUDA version from `PyTorch Get Started <https://pytorch.org/get-started/locally/>`_.
 
 
 Data Issues
