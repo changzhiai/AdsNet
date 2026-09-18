@@ -4,6 +4,26 @@ Foundation Model
 This guide describes the foundation model approach with AdsNet: pretraining on a large, diverse dataset and fine-tuning on specific target systems.
 
 
+Available Models
+----------------
+
+AdsNet ships with pretrained foundation models accessible via the registry:
+
+.. code-block:: python
+
+   from adsnet.foundation import foundation_model
+
+   print(foundation_model)
+   # {"metals": "/path/to/adsnet/foundation/metals.pt"}
+
+   # Use in training config
+   model_path = foundation_model["metals"]
+
+Available models:
+
+* ``metals`` — Pretrained on multi-metal, multi-adsorbate dataset (H*, C*, O*, CO*, OH*, HOCO* on diverse transition metal surfaces)
+
+
 Overview
 --------
 
@@ -61,6 +81,7 @@ Fine-tune the pretrained foundation model on a target system using ``load_model`
 
 .. code-block:: python
 
+   from adsnet.foundation import foundation_model
    from adsnet.trainer import Trainer
 
    trainer = Trainer(
@@ -74,7 +95,7 @@ Fine-tune the pretrained foundation model on a target system using ``load_model`
            "max_steps": 200000,
            "forces_weight": 0.90,
            "stop_patience": 200,
-           "load_model": "output_foundation/foundation.pt",
+           "load_model": foundation_model["metals"],
            "output_dir": "output_Pt",
            "output_model": "model.pt",
        },
@@ -98,7 +119,7 @@ Fine-tuning Strategies
 .. code-block:: python
 
    config = {
-       "load_model": "output_foundation/foundation.pt",
+       "load_model": foundation_model["metals"],
        "initial_lr": 1e-5,
        "max_steps": 200000,
    }
@@ -108,7 +129,7 @@ Fine-tuning Strategies
 .. code-block:: python
 
    config = {
-       "load_model": "output_foundation/foundation.pt",
+       "load_model": foundation_model["metals"],
        "initial_lr": 5e-5,
        "plateau_scheduler": True,
        "lr_decay_factor": 0.5,
@@ -139,6 +160,7 @@ Example: Multi-metal to Single-metal Transfer
 .. code-block:: python
 
    import os
+   from adsnet.foundation import foundation_model
    from adsnet.trainer import Trainer
 
    # Stage 1: Pretrain on all metals
@@ -171,7 +193,7 @@ Example: Multi-metal to Single-metal Transfer
            "max_steps": 200000,
            "forces_weight": 0.90,
            "stop_patience": 200,
-           "load_model": "output_foundation/foundation.pt",
+           "load_model": foundation_model["metals"],
            "output_dir": "output_Pt",
            "output_model": "model.pt",
        },
@@ -186,6 +208,7 @@ Fine-tune a multi-adsorbate foundation model to specialize on a specific adsorba
 
 .. code-block:: python
 
+   from adsnet.foundation import foundation_model
    from adsnet.trainer import Trainer
 
    # Foundation model was pretrained on H*, C*, O*, CO*, OH*, HOCO*
@@ -201,7 +224,7 @@ Fine-tune a multi-adsorbate foundation model to specialize on a specific adsorba
            "max_steps": 100000,
            "forces_weight": 0.90,
            "stop_patience": 150,
-           "load_model": "output_foundation/foundation.pt",
+           "load_model": foundation_model["metals"],
            "output_dir": "output_HOCO_Pt",
            "output_model": "model.pt",
        },
@@ -216,6 +239,7 @@ When only a small dataset is available (< 500 structures), use conservative hype
 
 .. code-block:: python
 
+   from adsnet.foundation import foundation_model
    from adsnet.trainer import Trainer
 
    trainer = Trainer(
@@ -233,7 +257,7 @@ When only a small dataset is available (< 500 structures), use conservative hype
            "plateau_scheduler": True,
            "lr_decay_factor": 0.5,
            "lr_patience": 5,
-           "load_model": "output_foundation/foundation.pt",
+           "load_model": foundation_model["metals"],
            "output_dir": "output_small",
            "output_model": "model.pt",
        },
@@ -256,6 +280,7 @@ Fine-tune in stages, progressively narrowing the domain:
 
 .. code-block:: python
 
+   from adsnet.foundation import foundation_model
    from adsnet.trainer import Trainer
 
    # Stage 1: Foundation → transition metals only
@@ -270,7 +295,7 @@ Fine-tune in stages, progressively narrowing the domain:
            "max_steps": 500000,
            "forces_weight": 0.90,
            "stop_patience": 400,
-           "load_model": "output_foundation/foundation.pt",
+           "load_model": foundation_model["metals"],
            "output_dir": "output_transition_metals",
            "output_model": "model.pt",
        },

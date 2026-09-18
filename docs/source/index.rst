@@ -1,7 +1,7 @@
 Welcome to AdsNet's documentation!
 ===================================
 
-**AdsNet** (Adsorption Network) is a machine learning framework for predicting adsorption properties on metal surfaces using graph neural networks. It employs a PaiNN-style equivariant message-passing architecture with scalar and vector node features, operating on local neighbor graphs to efficiently predict binding energies and atomic forces for adsorbate–surface systems.
+**AdsNet** (Adsorption Network) is a machine learning framework for predicting adsorption properties on metal surfaces using graph neural networks. It employs an equivariant message-passing architecture with scalar and vector node features, operating on local neighbor graphs to efficiently predict binding energies and atomic forces for adsorbate–surface systems.
 
 Key Features
 ------------
@@ -9,7 +9,7 @@ Key Features
 * **Single-pass adsorption energy** — predicts adsorption energies directly, no separate slab calculation needed
 * **System-size independent** — operates on local adsorbate graphs, cost does not grow with size
 * **Local structure relaxation** — built-in optimizer with projected gradient descent due to local forces supported
-* **Equivariant architecture** — PaiNN-based message passing with equivariant architecture
+* **Equivariant architecture** — equivariant message passing with scalar and vector node features
 * **Foundation model provided** — pretrain on diverse datasets, fine-tune on specific systems
 * **Parallel training** — multi-GPU training via PyTorch DDP
 * **ASE integration** — drop-in ASE calculator for use in existing workflows

@@ -4,8 +4,6 @@ from adsnet.calculators import MLCalculator, EnsembleCalculator
 from adsnet.trainer import Trainer
 from adsnet.tools import relax_structure
 
-PainnModel = AdsNet
-
 __all__ = [
     "AdsNet",
     "AseData",
@@ -14,5 +12,4 @@ __all__ = [
     "EnsembleCalculator",
     "Trainer",
     "relax_structure",
-    "PainnModel",
 ]

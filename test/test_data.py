@@ -17,7 +17,7 @@ class AseDataTestCase(unittest.TestCase):
     #         print(asedata[i].keys(), )
 
     def test_AseData_forces(self):
-        images = read(f'{path}/new_Pt_ads_forces.traj', ':')
+        images = read(f'{path}/test.traj', ':')
         asedata = AseData(images, cutoff=5.0)
         assert isinstance(asedata[0], dict)
 

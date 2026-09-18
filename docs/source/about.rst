@@ -18,7 +18,7 @@ The key of AdsNet is the use of a local adsorbate graph instead of a full graph.
 Model Architecture
 ------------------
 
-AdsNet implements an equivariant message-passing architecture based on PaiNN with scalar and vector node features. The inputs are atomic numbers and interatomic vectors within the adsorbate graph. Interatomic distances are expanded using radial basis functions and modulated by a cosine cutoff envelope. After multiple interaction layers of message passing and equivariant updates, a readout MLP predicts adsorption energy contributions that are summed to obtain the total adsorption energy. Forces are computed via automatic differentiation.
+AdsNet implements an equivariant message-passing architecture with scalar and vector node features. The inputs are atomic numbers and interatomic vectors within the adsorbate graph. Interatomic distances are expanded using radial basis functions and modulated by a cosine cutoff envelope. After multiple interaction layers of message passing and equivariant updates, a readout MLP predicts adsorption energy contributions that are summed to obtain the total adsorption energy. Forces are computed via automatic differentiation.
 
 .. image:: _static/images/2_arch.png
    :width: 80%
@@ -32,10 +32,10 @@ Citation
 
 If you use AdsNet in your research, please cite::
 
-    @article{AdsNet2025,
+    @article{AdsNet2026,
       author = {Ai, Changzhi and others},
       title = {AdsNet: A Graph Neural Network for Adsorption Energy Prediction},
-      year = {2025},
+      year = {2026},
     }
 
 The AdsTraj dataset is available on `Hugging Face <https://huggingface.co/datasets/changzhiai/AdsTraj>`_.

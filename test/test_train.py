@@ -14,19 +14,18 @@ def main():
             "cutoff": 5.5,
             "batch_size": 12,
             "initial_lr": 1e-4,
-            "max_steps": 1000000,
+            "max_steps": 100,
             "forces_weight": 0.70,
-            "stop_patience": 800,
+            "stop_patience": 50,
             "device": "cpu",
             "output_dir": f'{path}/output',
             "output_log": "output.log",
             "output_model": "model.pt",
-            "load_model": f'{path}/output/model.pt',
             "log_interval": 10,
         },
         distributed=False,
     )
-    trainer.train(f'{path}/Pt_ads_forces.traj')
+    trainer.train(f'{path}/test.traj')
 
 
 class TrainTestCase(unittest.TestCase):

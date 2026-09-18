@@ -7,10 +7,10 @@ __pycache__/
 
 # Data files
 *.traj
+!test/test.traj
 !docs/requirements.txt
 
 # Model files
-*.pt
 *.pth
 
 # Build / output

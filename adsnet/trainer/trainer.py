@@ -158,8 +158,8 @@ def eval_model(model, dataloader, device, forces_weight):
     total_loss = running_loss / count
 
     return {
-        "energy_mae": energy_mae,
-        "energy_rmse": energy_rmse,
+        "E_ads_mae": energy_mae,
+        "E_ads_rmse": energy_rmse,
         "forces_mae": forces_c_mae,
         "forces_rmse": forces_c_rmse,
         "sqrt(total_loss)": np.sqrt(total_loss),

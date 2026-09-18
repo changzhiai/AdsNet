@@ -29,7 +29,7 @@ Key features:
 - **Single-pass adsorption energy** — predicts adsorption energies directly, no separate slab calculation needed
 - **System-size independent** — operates on local adsorbate graphs, cost does not grow with slab size
 - **Local structure relaxation** — built-in optimizer with projected gradient descent due to local forces supported
-- **Equivariant architecture** — PaiNN-based message passing with equivariant architecture
+- **Equivariant architecture** — equivariant message passing with scalar and vector node features
 - **Foundation model provided** — pretrain on diverse datasets, fine-tune on specific systems
 - **Parallel training** — multi-GPU training via PyTorch DDP
 - **ASE integration** — drop-in ASE calculator for use in existing workflows
@@ -69,15 +69,15 @@ pip install torch --index-url https://download.pytorch.org/whl/cu121
 
 ## 3. Quickstart: Examples
 
-Example training and prediction scripts are available in the `proj/` directory:
+Example training and prediction scripts are available in the `examples/` directory:
 
 ```
-proj/
-├── proj_metals/    # Multi-metal training and relaxation
+examples/
+├── metals/    # Multi-metal training and relaxation
 │   ├── train.py
 │   ├── predict.py
 │   └── relax.py
-└── proj_Pt/        # Single-metal (Pt) training
+└── Pt/        # Single-metal (Pt) training
     ├── train.py
     ├── predict.py
     └── relax.py
@@ -178,9 +178,23 @@ local_idx, forces = calc.get_local_forces(atoms)
 
 ## 6. Foundation Models
 
+AdsNet ships with pretrained foundation models in `adsnet/foundation/`. Access them via the registry:
+
+```python
+from adsnet.foundation import foundation_model
+
+# Available models
+print(foundation_model)
+# {"metals": "/path/to/adsnet/foundation/metals.pt"}
+```
+
+> [!NOTE]
+> The `metals` foundation model is provided in this package, which was trained on various transition metals surfaces with various adsorbates and sites using the RPBE functional.
+
 ### Fine-tuning Foundation Models
 
 ```python
+from adsnet.foundation import foundation_model
 from adsnet.trainer import Trainer
 
 trainer = Trainer(
@@ -194,7 +208,7 @@ trainer = Trainer(
         "max_steps": 200000,
         "forces_weight": 0.90,
         "stop_patience": 200,
-        "load_model": "output_foundation/foundation.pt",
+        "load_model": foundation_model["metals"],
         "output_dir": "output_finetune",
         "output_model": "model.pt",
     },
@@ -298,9 +312,9 @@ SUNCAT Center for Interface Science and Catalysis, Stanford University and SLAC 
 If you use AdsNet in your research, please cite:
 
 ```
-@article{ai2025adsnet,
+@article{ai2026adsnet,
   title={AdsNet: A Graph Neural Network for Adsorption Energy Prediction},
   author={Ai, Changzhi and others},
-  year={2025},
+  year={2026},
 }
 ```

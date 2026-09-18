@@ -24,7 +24,7 @@ def main():
     model.load_state_dict(state_dict["model"])
 
     # Load structure
-    images = read(f'{path}/Pt_ads.traj', ':')
+    images = read(f'{path}/test.traj', ':')
     atoms = images[120]
 
     # Relax using tools/relax.py

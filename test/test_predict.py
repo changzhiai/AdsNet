@@ -25,7 +25,7 @@ def main():
     calc = MLCalculator(model)
 
     # Load dataset
-    images = read(f'{path}/Pt_ads.traj', ':')
+    images = read(f'{path}/test.traj', ':')
     print(f'Dataset: {len(images)} structures')
 
     # Predict
