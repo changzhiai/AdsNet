@@ -300,7 +300,7 @@ If you use AdsNet in your research, please cite:
 ```
 @article{ai2025adsnet,
   title={AdsNet: A Graph Neural Network for Adsorption Energy Prediction},
-  author={Ai, Changzhi},
+  author={Ai, Changzhi and others},
   year={2025},
 }
 ```

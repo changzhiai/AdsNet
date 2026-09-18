@@ -33,7 +33,7 @@ Citation
 If you use AdsNet in your research, please cite::
 
     @article{AdsNet2025,
-      author = {Ai, Changzhi},
+      author = {Ai, Changzhi and others},
       title = {AdsNet: A Graph Neural Network for Adsorption Energy Prediction},
       year = {2025},
     }
