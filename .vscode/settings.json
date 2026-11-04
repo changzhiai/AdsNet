@@ -1,4 +1,51 @@
 {
     "python-envs.defaultEnvManager": "ms-python.python:conda",
-    "python-envs.defaultPackageManager": "ms-python.python:conda"
+    "python-envs.defaultPackageManager": "ms-python.python:conda",
+
+    // paper/ is its own git repo (it syncs to Overleaf) and the parent repo
+    // ignores it. Register it explicitly so the Source Control view lists both
+    // AdsNet and paper as separate repositories.
+    "git.scanRepositories": [
+        "paper"
+    ],
+
+    // LaTeX build.
+    //
+    // LaTeX Workshop runs tools with the cwd set to the WORKSPACE ROOT, not the
+    // folder holding the .tex file. latexmk only auto-reads an rc file from the
+    // cwd, so paper/.latexmkrc would be silently ignored -- the symptom is aux
+    // files landing next to the sources and an empty bibliography. Hence:
+    //   -cd  ... make latexmk work inside the document's own folder
+    //   -r   ... load the project rc explicitly, since -cd happens too late
+    //            for rc discovery
+    // The rc puts intermediates in <doc>/output/ and prepends ~/.local/bin to
+    // PATH so a working biber is found (TeX Live's own biber is broken here).
+    "latex-workshop.latex.outDir": "%DIR%",
+    "latex-workshop.latex.tools": [
+        {
+            "name": "latexmk",
+            "command": "latexmk",
+            "args": [
+                "-cd",
+                "-r",
+                "%DIR%/.latexmkrc",
+                "-synctex=1",
+                "-interaction=nonstopmode",
+                "-file-line-error",
+                "-pdf",
+                "-outdir=%OUTDIR%",
+                "%DOC%"
+            ]
+        }
+    ],
+    "latex-workshop.latex.recipes": [
+        {
+            "name": "latexmk",
+            "tools": [
+                "latexmk"
+            ]
+        }
+    ],
+    "latex-workshop.latex.autoClean.run": "never",
+    "latex-workshop.view.pdf.viewer": "tab"
 }
