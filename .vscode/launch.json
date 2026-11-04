@@ -4,17 +4,94 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-        
-
         {
-            "name": "Python Debugger: Current File",
+            "name": "Python: Current File",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
             "env": {
-                    "PYTHONPATH": "${workspaceFolder}:/Users/changzhi/Library/CloudStorage/OneDrive-SLACNationalAcceleratorLaboratory/SLAC/AdsNet/test"
-                
+                "PYTHONPATH": "${workspaceFolder}${pathSeparator}${workspaceFolder}/test"
+            }
+        },
+        {
+            "name": "Test: Train",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/test/test_train.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${pathSeparator}${workspaceFolder}/test"
+            }
+        },
+        {
+            "name": "Test: Data",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/test/test_data.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${pathSeparator}${workspaceFolder}/test"
+            }
+        },
+        {
+            "name": "Test: Predict",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/test/test_predict.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${pathSeparator}${workspaceFolder}/test"
+            }
+        },
+        {
+            // Opens an ASE GUI window at the end via ase.visualize.view()
+            "name": "Test: Relax",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/test/test_relax.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${pathSeparator}${workspaceFolder}/test"
+            }
+        },
+        {
+            // Note: test_predict.py / test_relax.py expose only main(),
+            // so pytest collects them solely through test_all.py.
+            "name": "Pytest: All tests",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "test",
+                "-v"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${pathSeparator}${workspaceFolder}/test"
+            }
+        },
+        {
+            "name": "Pytest: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "${file}",
+                "-v",
+                "-s"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${pathSeparator}${workspaceFolder}/test"
+            }
         }
     ]
 }

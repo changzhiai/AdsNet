@@ -16,6 +16,9 @@ __pycache__/
 # Build / output
 *.log
 docs/build/
+.venv/
+.pytest_cache/
+adsnet.egg-info/
 
 # Config
 run.toml
@@ -29,3 +32,4 @@ output*
 model_output*
 paper/
 proj/
+
