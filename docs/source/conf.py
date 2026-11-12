@@ -6,7 +6,7 @@ project = 'AdsNet'
 from datetime import datetime
 copyright = f'2025-{datetime.now().year}, Changzhi Ai'
 author = 'Changzhi Ai'
-release = '0.1.1'
+release = '0.1.2'
 
 templates_path = ['_templates']
 html_static_path = ['_static']
