@@ -30,12 +30,31 @@ The model uses equivariant message passing with scalar and vector channels over 
 Citation
 --------
 
+The paper is available on arXiv: `arXiv:2611.25646 <https://arxiv.org/abs/2611.25646>`_.
+
 If you use AdsNet in your research, please cite::
 
-    @article{AdsNet2026,
-      author = {Ai, Changzhi and others},
-      title = {AdsNet: A Graph Neural Network for Adsorption Energy Prediction},
-      year = {2026},
+    @article{ai2026adsnet,
+      title         = {AdsNet: A Graph Neural Network for Direct Adsorption Energy Prediction},
+      author        = {Ai, Changzhi and Abild-Pedersen, Frank and Voss, Johannes},
+      year          = {2026},
+      eprint        = {2611.25646},
+      archivePrefix = {arXiv},
+      primaryClass  = {cond-mat.mtrl-sci},
+      doi           = {10.48550/arXiv.2611.25646},
+      url           = {https://arxiv.org/abs/2611.25646}
     }
 
-The AdsTraj dataset is available on `Hugging Face <https://huggingface.co/datasets/changzhiai/AdsTraj>`_.
+To cite the software itself, rather than the paper, use the archived release::
+
+    @software{adsnet_software,
+      title     = {AdsNet: A Graph Neural Network for Direct Adsorption Energy Prediction},
+      author    = {Ai, Changzhi and Abild-Pedersen, Frank and Voss, Johannes},
+      year      = {2026},
+      publisher = {Zenodo},
+      doi       = {10.5281/zenodo.24170856},
+      url       = {https://doi.org/10.5281/zenodo.24170856}
+    }
+
+The AdsTraj dataset is available on `Hugging Face <https://huggingface.co/datasets/changzhiai/AdsTraj>`_,
+and the trained model weights at `changzhiai/adsnet-models <https://huggingface.co/changzhiai/adsnet-models>`_.

@@ -5,6 +5,7 @@
 [![Docs](https://img.shields.io/badge/Docs-available-blue)](https://adsnet.readthedocs.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/license/MIT)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![arXiv](https://img.shields.io/badge/arXiv-2611.25646-b31b1b.svg)](https://arxiv.org/abs/2611.25646)
 
 ## Table of Contents
 
@@ -317,10 +318,28 @@ SUNCAT Center for Interface Science and Catalysis, Stanford University and SLAC 
 
 If you use AdsNet in your research, please cite:
 
-```
+```bibtex
 @article{ai2026adsnet,
-  title={AdsNet: A Graph Neural Network for Adsorption Energy Prediction},
-  author={Ai, Changzhi and others},
-  year={2026},
+  title         = {AdsNet: A Graph Neural Network for Direct Adsorption Energy Prediction},
+  author        = {Ai, Changzhi and Abild-Pedersen, Frank and Voss, Johannes},
+  year          = {2026},
+  eprint        = {2611.25646},
+  archivePrefix = {arXiv},
+  primaryClass  = {cond-mat.mtrl-sci},
+  doi           = {10.48550/arXiv.2611.25646},
+  url           = {https://arxiv.org/abs/2611.25646}
+}
+```
+
+To cite the software itself, rather than the paper, use the archived release:
+
+```bibtex
+@software{adsnet_software,
+  title     = {AdsNet: A Graph Neural Network for Direct Adsorption Energy Prediction},
+  author    = {Ai, Changzhi and Abild-Pedersen, Frank and Voss, Johannes},
+  year      = {2026},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.24170856},
+  url       = {https://doi.org/10.5281/zenodo.24170856}
 }
 ```
